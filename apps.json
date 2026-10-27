@@ -1,0 +1,19 @@
+{
+  "name": "VipeStore",
+  "identifier": "com.vipestore.repo",
+  "subtitle": "Your Ultimate Custom App Hub",
+  "description": "SideLoading App.",
+  "apps": [
+    {
+      "name": "Example App",
+      "bundleIdentifier": "com.vipestore.app",
+      "developerName": "VipeStore",
+      "version": "1.0",
+      "versionDate": "2026-10-28",
+      "downloadURL": "https://example.com/app.ipa",
+      "iconURL": "https://example.com/icon.png",
+      "size": 15000000,
+      "localizedDescription": "هذا تطبيق تجريبي، تقدر تبدله برابط تطبيقك الحقيقي لاحقاً."
+    }
+  ]
+}
