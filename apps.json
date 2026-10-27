@@ -1,19 +1,19 @@
 {
   "name": "VipeStore",
   "identifier": "com.vipestore.repo",
-  "subtitle": "Your Ultimate Custom App Hub",
-  "description": "SideLoading App.",
+  "subtitle": "Custom App",
+  "description": "SideLoading App",
   "apps": [
     {
-      "name": "Example App",
-      "bundleIdentifier": "com.vipestore.app",
+      "name": "uYouEnhanced",
+      "bundleIdentifier": "com.google.ios.youtube",
       "developerName": "VipeStore",
-      "version": "1.0",
+      "version": "19.10.2",
       "versionDate": "2026-10-28",
-      "downloadURL": "https://example.com/app.ipa",
-      "iconURL": "https://example.com/icon.png",
-      "size": 15000000,
-      "localizedDescription": "هذا تطبيق تجريبي، تقدر تبدله برابط تطبيقك الحقيقي لاحقاً."
+      "downloadURL": "https://github.com/arichika/uYouEnhanced/releases/download/v19.10.2-3.0.3/uYouEnhanced_19.10.2_3.0.3.ipa",
+      "iconURL": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/39/3a/50/393a505e-f78f-a99f-e685-6d639bbbc0f5/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/512x512bb.jpg",
+      "size": 85000000,
+      "localizedDescription": "تطبيق يوتيوب معدل لتجربة متجرك VipeStore الأول."
     }
   ]
 }
