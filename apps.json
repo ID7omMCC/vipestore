@@ -1,8 +1,8 @@
 {
   "name": "VipeStore",
   "identifier": "com.vipestore.repo",
-  "subtitle": "Custom App",
-  "description": "SideLoading App",
+  "subtitle": "Your Ultimate Custom App Hub",
+  "description": "SideLoading App.",
   "apps": [
     {
       "name": "YouTubeOLED",
@@ -10,10 +10,10 @@
       "developerName": "VipeStore",
       "version": "19.10.2",
       "versionDate": "2026-10-28",
-      "downloadURL": "https://github.com/apptesters-org/AppTesters_Repo/releases/download/13-01-2026/YouTubeOLED_21.02.3_Premium_%40thisismanpreets_apptesters.org.ipa",
+      "downloadURL": "https://github.com/apptesters-org/AppTesters_Repo/releases/download/13-01-2026/YouTubeOLED_21.02.3_Premium_%40thisismanpreets.ipa",
       "iconURL": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/39/3a/50/393a505e-f78f-a99f-e685-6d639bbbc0f5/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/512x512bb.jpg",
       "size": 85000000,
-      "localizedDescription": "تطبيق يوتيوب معدل لتجربة متجرك VipeStore الأول."
+      "localizedDescription": "تطبيق يوتيوب معدل لتجربة متجر VipeStore الأول."
     }
   ]
 }
