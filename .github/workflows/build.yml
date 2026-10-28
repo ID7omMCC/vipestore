@@ -75,7 +75,7 @@ jobs:
               [self.view addSubview:label];
               
               self.appsList = [NSMutableArray arrayWithArray:@[
-                  @{@"name": @"VipeStore Client", @"version": @"v2.7", @"status": @"Active"},
+                  @{@"name": @"VipeStore Client", @"version": @"v2.8", @"status": @"Active"},
                   @{@"name": @"Mock App Example", @"version": @"v1.1", @"status": @"Active"}
               ]];
               
@@ -286,9 +286,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>2.7</string>
+              <string>2.8</string>
               <key>CFBundleShortVersionString</key>
-              <string>2.7</string>
+              <string>2.8</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
@@ -303,11 +303,39 @@ jobs:
               <array>
                   <string>arm64</string>
               </array>
+              <key>UILaunchStoryboardName</key>
+              <string>LaunchScreen</string>
               <key>DTPlatformName</key>
               <string>iphoneos</string>
               <key>DTSDKName</key>
               <string>iphoneos</string>
           </dict>
+          </plist>
+          EOF
+
+          # إنشاء LaunchScreen.storyboard وهمي وخفيف لفرض ملء الشاشة الكاملة على الآيفون الحديث
+          cat << 'EOF' > Payload/VipeStore.app/LaunchScreen.storyboard
+          <?xml version="1.0" encoding="UTF-8"?>
+          <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.00" toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+              <device id="retina6_1" orientation="portrait" appearance="dark"/>
+              <dependencies>
+                  <key>IDNayan</key>
+                  <string>Configured</string>
+              </dependencies>
+              <scenes>
+                  <scene sceneID="EHf-IW-A2E">
+                      <objects>
+                          <viewController id="01J-lp-oVM" sceneMemberID="Controller" customClass="UIViewController">
+                              <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
+                                  <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                                  <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                  <color key="backgroundColor" red="0.07" green="0.07" blue="0.09" alpha="1.0" colorSpace="custom" customColorSpace="sRGB"/>
+                              </view>
+                          </viewController>
+                      </objects>
+                  </scene>
+              </scenes>
+          </document>
           </plist>
           EOF
 
