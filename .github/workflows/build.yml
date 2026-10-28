@@ -6,19 +6,19 @@ on:
 
 jobs:
   build:
-               runs-on: macos-latest
-  steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-    - name: Create Dummy IPA Structure
-      run: |
-        mkdir -p Payload
-        echo "VipeStore" > Payload/info.txt
-        zip -r VipeStore.ipa Payload
-
-    - name: Upload IPA Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: VipeStore-IPA
-        path: VipeStore.ipa
+      - name: Create Dummy IPA Structure
+        run: |
+          mkdir -p Payload
+          echo "VipeStore" > Payload/info.txt
+          zip -r VipeStore.ipa Payload
+          
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: VipeStore-IPA
+          path: VipeStore.ipa
