@@ -25,6 +25,7 @@ jobs:
           + (NSMutableArray *)loadSources;
           + (void)saveInstalledApps:(NSArray *)apps;
           + (NSMutableArray *)loadInstalledApps;
+          + (void)addInstalledApp:(NSDictionary *)app;
           @end
 
           @implementation PersistenceManager
@@ -53,6 +54,12 @@ jobs:
               }
               return [saved mutableCopy];
           }
+
+          + (void)addInstalledApp:(NSDictionary *)app {
+              NSMutableArray *apps = [self loadInstalledApps];
+              [apps addObject:app];
+              [self saveInstalledApps:apps];
+          }
           @end
 
           @interface HomeViewController : UIViewController
@@ -78,47 +85,7 @@ jobs:
           }
           @end
 
-          @interface MyAppsViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
-          @property (strong, nonatomic) UITableView *tableView;
-          @property (strong, nonatomic) NSMutableArray *installedApps;
-          @end
-          @implementation MyAppsViewController
-          - (void)viewDidLoad {
-              [super viewDidLoad];
-              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
-              self.title = @"My Apps";
-              self.installedApps = [PersistenceManager loadInstalledApps];
-              
-              self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
-              self.tableView.backgroundColor = [UIColor clearColor];
-              self.tableView.dataSource = self;
-              self.tableView.delegate = self;
-              [self.view addSubview:self.tableView];
-          }
-          - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-              return self.installedApps.count > 0 ? self.installedApps.count : 1;
-          }
-          - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-              UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"AppCell"];
-              if (!cell) {
-                  cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"AppCell"];
-              }
-              cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
-              if (self.installedApps.count > 0) {
-                  cell.textLabel.text = self.installedApps[indexPath.row][@"name"];
-                  cell.textLabel.textColor = [UIColor whiteColor];
-                  cell.detailTextLabel.text = @"Installed";
-                  cell.detailTextLabel.textColor = [UIColor systemGreenColor];
-              } else {
-                  cell.textLabel.text = @"No apps installed yet";
-                  cell.textLabel.textColor = [UIColor lightGrayColor];
-                  cell.detailTextLabel.text = @"Go to Sources to download apps";
-                  cell.detailTextLabel.textColor = [UIColor grayColor];
-              }
-              return cell;
-          }
-          @end
-
+          // --- Source Detail View Controller (True JSON Parser & Working GET Button) ---
           @interface SourceDetailViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) NSString *sourceURL;
           @property (strong, nonatomic) NSMutableArray *repoApps;
@@ -206,8 +173,95 @@ jobs:
               [getBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
               getBtn.titleLabel.font = [UIFont boldSystemFontOfSize:13];
               getBtn.layer.cornerRadius = 15;
+              getBtn.tag = indexPath.row;
+              [getBtn removeTarget:nil action:NULL forControlEvents:UIControlEventAllEvents];
+              [getBtn addTarget:self action:@selector(installApp:) forControlEvents:UIControlEventTouchUpInside];
               cell.accessoryView = getBtn;
 
+              return cell;
+          }
+
+          - (void)installApp:(UIButton *)sender {
+              NSInteger index = sender.tag;
+              if (index < self.repoApps.count) {
+                  NSDictionary *app = self.repoApps[index];
+                  [PersistenceManager addInstalledApp:app];
+                  
+                  UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Success" message:[NSString stringWithFormat:@"'%@' added to My Apps!", app[@"name"]] preferredStyle:UIAlertControllerStyleAlert];
+                  [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                  [self presentViewController:alert animated:YES completion:nil];
+              }
+          }
+          @end
+
+          // --- My Apps View Controller (With Add Button +) ---
+          @interface MyAppsViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
+          @property (strong, nonatomic) UITableView *tableView;
+          @property (strong, nonatomic) NSMutableArray *installedApps;
+          @end
+          @implementation MyAppsViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              self.title = @"My Apps";
+              
+              self.installedApps = [PersistenceManager loadInstalledApps];
+              
+              self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
+              self.tableView.backgroundColor = [UIColor clearColor];
+              self.tableView.dataSource = self;
+              self.tableView.delegate = self;
+              [self.view addSubview:self.tableView];
+              
+              UIBarButtonItem *addBtn = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(addAppPrompt)];
+              self.navigationItem.rightBarButtonItem = addBtn;
+          }
+
+          - (void)viewWillAppear:(BOOL)animated {
+              [super viewWillAppear:animated];
+              self.installedApps = [PersistenceManager loadInstalledApps];
+              [self.tableView reloadData];
+          }
+
+          - (void)addAppPrompt {
+              UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Add Custom App" message:@"Enter app details:" preferredStyle:UIAlertControllerStyleAlert];
+              [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.placeholder = @"App Name"; tf.textColor = [UIColor whiteColor]; }];
+              [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.placeholder = @"Version (e.g. 1.0)"; tf.textColor = [UIColor whiteColor]; }];
+              [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+              [alert addAction:[UIAlertAction actionWithTitle:@"Add" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                  NSString *name = alert.textFields[0].text;
+                  NSString *version = alert.textFields[1].text;
+                  if (name.length > 0) {
+                      NSDictionary *newApp = @{@"name": name, @"version": version.length > 0 ? version : @"1.0", @"desc": @"Custom sideloaded app"};
+                      [PersistenceManager addInstalledApp:newApp];
+                      self.installedApps = [PersistenceManager loadInstalledApps];
+                      [self.tableView reloadData];
+                  }
+              }]];
+              [self presentViewController:alert animated:YES completion:nil];
+          }
+
+          - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+              return self.installedApps.count > 0 ? self.installedApps.count : 1;
+          }
+
+          - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+              UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"AppCell"];
+              if (!cell) {
+                  cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"AppCell"];
+              }
+              cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
+              if (self.installedApps.count > 0) {
+                  cell.textLabel.text = self.installedApps[indexPath.row][@"name"];
+                  cell.textLabel.textColor = [UIColor whiteColor];
+                  cell.detailTextLabel.text = self.installedApps[indexPath.row][@"version"] ? [NSString stringWithFormat:@"Version: %@", self.installedApps[indexPath.row][@"version"]] : @"Installed";
+                  cell.detailTextLabel.textColor = [UIColor systemGreenColor];
+              } else {
+                  cell.textLabel.text = @"No apps installed yet";
+                  cell.textLabel.textColor = [UIColor lightGrayColor];
+                  cell.detailTextLabel.text = @"Use Sources or click '+' to add apps";
+                  cell.detailTextLabel.textColor = [UIColor grayColor];
+              }
               return cell;
           }
           @end
@@ -329,7 +383,7 @@ jobs:
               cell.textLabel.textColor = [UIColor whiteColor];
               if (indexPath.row == 0) cell.textLabel.text = @"LocalDevVPN Status: Active";
               if (indexPath.row == 1) cell.textLabel.text = @"Clear App Cache";
-              if (indexPath.row == 2) cell.textLabel.text = @"VipeStore Version 7.2 (Pro)";
+              if (indexPath.row == 2) cell.textLabel.text = @"VipeStore Version 7.3 (Pro)";
               return cell;
           }
           @end
@@ -359,7 +413,7 @@ jobs:
               
               MyAppsViewController *myAppsVC = [[MyAppsViewController alloc] init];
               UINavigationController *myAppsNav = [[UINavigationController alloc] initWithRootViewController:myAppsVC];
-              myAppsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"My Apps" image:[UIImage systemImageNamed:@"square.stack.3d.down.right.fill"] tag:1];
+              myAppsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Apps" image:[UIImage systemImageNamed:@"square.stack.3d.down.right.fill"] tag:1];
               
               SourcesViewController *sourcesVC = [[SourcesViewController alloc] init];
               UINavigationController *sourcesNav = [[UINavigationController alloc] initWithRootViewController:sourcesVC];
@@ -409,9 +463,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>7.2</string>
+              <string>7.3</string>
               <key>CFBundleShortVersionString</key>
-              <string>7.2</string>
+              <string>7.3</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
