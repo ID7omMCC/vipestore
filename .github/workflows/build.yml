@@ -13,7 +13,7 @@ jobs:
 
       - name: Build Mach-O iOS App
         run: |
-          # 1. إنشاء هيكل التطبيق
+          # 1. إنشاء هيكل التطبيق بالاسم الصحيح
           mkdir -p Payload/VipeStore.app
 
           # 2. إنشاء كود C سليم ونظيف
@@ -25,11 +25,11 @@ jobs:
           }
           EOF
 
-          # ترجمة الملف خصيصاً لنواة arm64 بصيغة Mach-O الرسمية
-          clang -arch arm64 main.c -o Payload/VipeStore.app/VipeStore
+          # 3. السر هنا: ترجمة الكود حصرياً لنظام iOS الحقيقي وليس الـ macOS
+          xcrun -sdk iphoneos clang -arch arm64 main.c -o Payload/VipeStore.app/VipeStore
           chmod +x Payload/VipeStore.app/VipeStore
 
-          # 3. إنشاء ملف Info.plist مدعوم بكافة مفاتيح التوافق لمنع رسائل التحديث نهائياً
+          # 4. إنشاء ملف Info.plist متوافق تماماً وموجه لنظام iOS
           cat << 'EOF' > Payload/VipeStore.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -44,9 +44,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>7.0</string>
+              <string>8.0</string>
               <key>CFBundleShortVersionString</key>
-              <string>7.0</string>
+              <string>8.0</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
@@ -69,7 +69,7 @@ jobs:
           </plist>
           EOF
 
-          # 4. ضغط الحزمة إلى IPA نهائي
+          # 5. ضغط الحزمة إلى IPA نهائي
           zip -r VipeStore.ipa Payload
 
       - name: Upload IPA Artifact
