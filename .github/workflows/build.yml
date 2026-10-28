@@ -16,7 +16,6 @@ jobs:
           rm -rf Payload VipeStore.ipa
           mkdir -p Payload/VipeStore.app
           
-          # تجميع ملف الكود المصدري الحقيقي المتكامل مع الـ JSON Parser الحقيقي
           cat << 'EOF' > main_complete.m
           #import <UIKit/UIKit.h>
 
@@ -56,7 +55,75 @@ jobs:
           }
           @end
 
-          // --- Source Detail View Controller (True JSON Parser) ---
+          // --- 1. Home View Controller ---
+          @interface HomeViewController : UIViewController
+          @end
+          @implementation HomeViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              self.title = @"Home";
+              
+              UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 100, self.view.bounds.size.width - 40, 40)];
+              titleLabel.text = @"Welcome to VipeStore 🚀";
+              titleLabel.textColor = [UIColor whiteColor];
+              titleLabel.font = [UIFont boldSystemFontOfSize:24];
+              [self.view addSubview:titleLabel];
+              
+              UILabel *subLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 150, self.view.bounds.size.width - 40, 60)];
+              subLabel.text = @"Your ultimate iOS sideloading & repository hub. Explore sources or manage your apps below.";
+              subLabel.textColor = [UIColor lightGrayColor];
+              subLabel.font = [UIFont systemFontOfSize:15];
+              subLabel.numberOfLines = 0;
+              [self.view addSubview:subLabel];
+          }
+          @end
+
+          // --- 2. My Apps View Controller ---
+          @interface MyAppsViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
+          @property (strong, nonatomic) UITableView *tableView;
+          @property (strong, nonatomic) NSMutableArray *installedApps;
+          @end
+          @implementation MyAppsViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              self.title = @"My Apps";
+              self.installedApps = [PersistenceManager loadInstalledApps];
+              
+              self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
+              self.tableView.backgroundColor = [UIColor clearColor];
+              self.tableView.dataSource = self;
+              self.tableView.delegate = self;
+              [self.view addSubview:self.tableView];
+          }
+
+          - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+              return self.installedApps.count > 0 ? self.installedApps.count : 1;
+          }
+
+          - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+              UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"AppCell"];
+              if (!cell) {
+                  cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"AppCell"];
+              }
+              cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
+              if (self.installedApps.count > 0) {
+                  cell.textLabel.text = self.installedApps[indexPath.row][[@"name" description]];
+                  cell.textLabel.textColor = [UIColor whiteColor];
+                  cell.detailTextLabel.text = @"Installed";
+                  cell.detailTextLabel.textColor = [UIColor systemGreenColor];
+              } else {
+                  cell.textLabel.text = @"No apps installed yet";
+                  cell.textLabel.textColor = [UIColor lightGrayColor];
+                  cell.detailTextLabel.text = @"Go to Sources to download apps";
+                  cell.detailTextLabel.textColor = [UIColor grayColor];
+              }
+              return cell;
+          }
+          @end
+
+          // --- 3. Source Detail View Controller (True JSON Parser) ---
           @interface SourceDetailViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) NSString *sourceURL;
           @property (strong, nonatomic) NSMutableArray *repoApps;
@@ -160,32 +227,18 @@ jobs:
           - (void)viewDidLoad {
               [super viewDidLoad];
               self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
-              CGFloat screenWidth = self.view.bounds.size.width;
-              CGFloat screenHeight = self.view.bounds.size.height;
-              
-              UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, 70, screenWidth - 100, 40)];
-              label.text = @"Sources";
-              label.textColor = [UIColor whiteColor];
-              label.font = [UIFont boldSystemFontOfSize:30];
-              [self.view addSubview:label];
-              
-              UIButton *addSourceBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-              addSourceBtn.frame = CGRectMake(screenWidth - 60, 70, 40, 40);
-              [addSourceBtn setTitle:@"+" forState:UIControlStateNormal];
-              [addSourceBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-              addSourceBtn.titleLabel.font = [UIFont boldSystemFontOfSize:28];
-              addSourceBtn.backgroundColor = [UIColor systemPurpleColor];
-              addSourceBtn.layer.cornerRadius = 20;
-              [addSourceBtn addTarget:self action:@selector(addSourcePrompt) forControlEvents:UIControlEventTouchUpInside];
-              [self.view addSubview:addSourceBtn];
+              self.title = @"Sources";
               
               self.sourcesList = [PersistenceManager loadSources];
               
-              self.tableView = [[UITableView alloc] initWithFrame:CGRectMake(0, 130, screenWidth, screenHeight - 200) style:UITableViewStyleInsetGrouped];
+              self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
               self.tableView.backgroundColor = [UIColor clearColor];
               self.tableView.dataSource = self;
               self.tableView.delegate = self;
               [self.view addSubview:self.tableView];
+              
+              UIBarButtonItem *addBtn = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(addSourcePrompt)];
+              self.navigationItem.rightBarButtonItem = addBtn;
           }
 
           - (void)addSourcePrompt {
@@ -230,7 +283,100 @@ jobs:
           }
           @end
 
-          // --- App Delegate ---
+          // --- 4. Account & Setup Pairing File View Controller ---
+          @interface AccountViewController : UIViewController <UITableViewDataSource, UITableViewDelegate, UIDocumentPickerDelegate>
+          @property (strong, nonatomic) UITableView *tableView;
+          @end
+          @implementation AccountViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              self.title = @"Account & Pairing";
+              
+              self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
+              self.tableView.backgroundColor = [UIColor clearColor];
+              self.tableView.dataSource = self;
+              self.tableView.delegate = self;
+              [self.view addSubview:self.tableView];
+          }
+
+          - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+              return 2;
+          }
+
+          - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+              return 1;
+          }
+
+          - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+              return section == 0 ? @"Pairing File Setup" : @"Developer Account";
+          }
+
+          - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+              UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"AccCell"];
+              cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
+              cell.textLabel.textColor = [UIColor whiteColor];
+              
+              if (indexPath.section == 0) {
+                  cell.textLabel.text = @"📁 Import Pairing File (.mobiledevicepairing)";
+                  cell.textLabel.textColor = [UIColor systemPurpleColor];
+              } else {
+                  cell.textLabel.text = @"🔑 Sign in with Apple ID (AltServer/Sideload)";
+              }
+              return cell;
+          }
+
+          - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+              [tableView deselectRowAtIndexPath:indexPath animated:YES];
+              if (indexPath.section == 0) {
+                  UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[[UTType typeWithIdentifier:@"public.data"]]];
+                  documentPicker.delegate = self;
+                  [self presentViewController:documentPicker animated:YES completion:nil];
+              } else {
+                  UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Sign In" message:@"Enter your Apple ID credentials for app signing:" preferredStyle:UIAlertControllerStyleAlert];
+                  [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.placeholder = @"Email"; tf.textColor = [UIColor whiteColor]; }];
+                  [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.placeholder = @"Password"; tf.secureTextEntry = YES; tf.textColor = [UIColor whiteColor]; }];
+                  [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+                  [alert addAction:[UIAlertAction actionWithTitle:@"Login" style:UIAlertActionStyleDefault handler:nil]];
+                  [self presentViewController:alert animated:YES completion:nil];
+              }
+          }
+
+          - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
+              NSURL *fileURL = urls.firstObject;
+              if (fileURL) {
+                  UIAlertController *done = [UIAlertController alertControllerWithTitle:@"Success" message:[NSString stringWithFormat:@"Pairing file imported: %@", fileURL.lastPathComponent] preferredStyle:UIAlertControllerStyleAlert];
+                  [done addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                  [self presentViewController:done animated:YES completion:nil];
+              }
+          }
+          @end
+
+          // --- 5. Settings View Controller ---
+          @interface SettingsViewController : UITableViewController
+          @end
+          @implementation SettingsViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              self.title = @"Settings";
+              self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
+              self.tableView.backgroundColor = [UIColor clearColor];
+          }
+          - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 1; }
+          - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return 3; }
+          - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+              UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"SetCell"];
+              cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
+              cell.textLabel.textColor = [UIColor whiteColor];
+              if (indexPath.row == 0) cell.textLabel.text = @"LocalDevVPN Status: Active";
+              if (indexPath.row == 1) cell.textLabel.text = @"Clear App Cache";
+              if (indexPath.row == 2) cell.textLabel.text = @"VipeStore Version 7.2 (Pro)";
+              return cell;
+          }
+          @end
+
+          // --- App Delegate & Tab Bar Setup ---
           @interface AppDelegate : UIResponder <UIApplicationDelegate>
           @property (strong, nonatomic) UIWindow *window;
           @end
@@ -238,9 +384,41 @@ jobs:
           @implementation AppDelegate
           - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
               self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+              
+              UITabBarController *tabBarController = [[UITabBarController alloc] init];
+              
+              if (@available(iOS 15.0, *)) {
+                  UITabBarAppearance *appearance = [[UITabBarAppearance alloc] init];
+                  [appearance configureWithOpaqueBackground];
+                  appearance.backgroundColor = [UIColor colorWithRed:0.09 green:0.09 blue:0.12 alpha:0.95];
+                  tabBarController.tabBar.standardAppearance = appearance;
+                  tabBarController.tabBar.scrollEdgeAppearance = appearance;
+              }
+              tabBarController.tabBar.tintColor = [UIColor systemPurpleColor];
+              
+              HomeViewController *homeVC = [[HomeViewController alloc] init];
+              UINavigationController *homeNav = [[UINavigationController alloc] initWithRootViewController:homeVC];
+              homeNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Home" image:[UIImage systemImageNamed:@"house.fill"] tag:0];
+              
+              MyAppsViewController *myAppsVC = [[MyAppsViewController alloc] init];
+              UINavigationController *myAppsNav = [[UINavigationController alloc] initWithRootViewController:myAppsVC];
+              myAppsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"My Apps" image:[UIImage systemImageNamed:@"square.stack.3d.down.right.fill"] tag:1];
+              
               SourcesViewController *sourcesVC = [[SourcesViewController alloc] init];
-              UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:sourcesVC];
-              self.window.rootViewController = nav;
+              UINavigationController *sourcesNav = [[UINavigationController alloc] initWithRootViewController:sourcesVC];
+              sourcesNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Sources" image:[UIImage systemImageNamed:@"globe"] tag:2];
+              
+              AccountViewController *accountVC = [[AccountViewController alloc] init];
+              UINavigationController *accountNav = [[UINavigationController alloc] initWithRootViewController:accountVC];
+              accountNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Account" image:[UIImage systemImageNamed:@"person.crop.circle.fill"] tag:3];
+              
+              SettingsViewController *settingsVC = [[SettingsViewController alloc] init];
+              UINavigationController *settingsNav = [[UINavigationController alloc] initWithRootViewController:settingsVC];
+              settingsNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Settings" image:[UIImage systemImageNamed:@"gearshape.fill"] tag:4];
+              
+              tabBarController.viewControllers = @[homeNav, myAppsNav, sourcesNav, accountNav, settingsNav];
+              
+              self.window.rootViewController = tabBarController;
               [self.window makeKeyAndVisible];
               return YES;
           }
@@ -260,7 +438,6 @@ jobs:
           chmod +x Payload/VipeStore.app/VipeStore
           rm -f main_complete.m
 
-          # إنشاء Info.plist المتوافق
           cat << 'EOF' > Payload/VipeStore.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -275,9 +452,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>7.0</string>
+              <string>7.2</string>
               <key>CFBundleShortVersionString</key>
-              <string>7.0</string>
+              <string>7.2</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
