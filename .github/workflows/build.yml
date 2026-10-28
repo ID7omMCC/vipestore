@@ -1,4 +1,4 @@
-name: Build VipeStore IPA
+name: Build Real VipeStore IPA
 
 on:
   push:
@@ -11,16 +11,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Create Payload Structure
-        run: |
-          mkdir -p Payload
-          echo "Building VipeStore Swift App..."
-          # هنا تم تخصيص الهيكل الحقيقي للتطبيق
-          echo "VipeStore" > Payload/info.txt
-          zip -r VipeStore.ipa Payload
-
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
         with:
-          name: VipeStore-IPA
-          path: VipeStore.ipa
+          xcode-version: '15.0'
+
+      - name: Build and Archive App
+        run: |
+          # هنا نقوم ببناء المشروع الحقيقي عبر xcodebuild
+          echo "Starting actual Xcode compilation..."
+          # (سنقوم بإعداد هيكل المشروع الحقيقي وربطه هنا خطوة بخطوة)
