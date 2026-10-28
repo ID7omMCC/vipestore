@@ -16,20 +16,17 @@ jobs:
           # 1. إنشاء هيكل التطبيق
           mkdir -p Payload/VipeStore.app
 
-          # 2. إنشاء ملف سي C بسيط جداً ومترجم بنظام Mach-O أصلي 100% للآي أو إس (يتخطى كل مشاكل السويفت الافتراضية)
+          # 2. إنشاء كود C سليم ونظيف بصياغة صحيحة 100%
           cat << 'EOF' > main.c
-          #stdio.h
           #include <stdio.h>
           int main() {
-              printf("VipeStore Mach-O Initialized\n");
+              printf("VipeStore Mach-O Initialized Successfully\n");
               return 0;
           }
           EOF
 
-          # تصحيح الملف وترجمته خصيصاً لنواة arm64 بصيغة Mach-O الرسمية
-          xcrun -sdk iphoneos clang -arch arm64 main.c -o Payload/VipeStore.app/VipeStore || \
+          # ترجمة الملف خصيصاً لنواة arm64 بصيغة Mach-O الرسمية بدون أخطاء
           clang -arch arm64 main.c -o Payload/VipeStore.app/VipeStore
-
           chmod +x Payload/VipeStore.app/VipeStore
 
           # 3. إنشاء ملف Info.plist النظامي المتكامل
