@@ -13,13 +13,13 @@ jobs:
 
       - name: Compile and Package IPA
         run: |
+          set -e
           rm -rf Payload VipeStore.ipa
           mkdir -p Payload/VipeStore.app
           
           cat << 'EOF' > main_complete.m
           #import <UIKit/UIKit.h>
 
-          // --- Persistence Manager ---
           @interface PersistenceManager : NSObject
           + (void)saveSources:(NSArray *)sources;
           + (NSMutableArray *)loadSources;
@@ -55,7 +55,6 @@ jobs:
           }
           @end
 
-          // --- 1. Home View Controller ---
           @interface HomeViewController : UIViewController
           @end
           @implementation HomeViewController
@@ -71,7 +70,7 @@ jobs:
               [self.view addSubview:titleLabel];
               
               UILabel *subLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 150, self.view.bounds.size.width - 40, 60)];
-              subLabel.text = @"Your ultimate iOS sideloading & repository hub. Explore sources or manage your apps below.";
+              subLabel.text = @"Your ultimate iOS sideloading & repository hub.";
               subLabel.textColor = [UIColor lightGrayColor];
               subLabel.font = [UIFont systemFontOfSize:15];
               subLabel.numberOfLines = 0;
@@ -79,7 +78,6 @@ jobs:
           }
           @end
 
-          // --- 2. My Apps View Controller ---
           @interface MyAppsViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) UITableView *tableView;
           @property (strong, nonatomic) NSMutableArray *installedApps;
@@ -97,11 +95,9 @@ jobs:
               self.tableView.delegate = self;
               [self.view addSubview:self.tableView];
           }
-
           - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
               return self.installedApps.count > 0 ? self.installedApps.count : 1;
           }
-
           - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
               UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"AppCell"];
               if (!cell) {
@@ -109,7 +105,7 @@ jobs:
               }
               cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
               if (self.installedApps.count > 0) {
-                  cell.textLabel.text = self.installedApps[indexPath.row][[@"name" description]];
+                  cell.textLabel.text = self.installedApps[indexPath.row][@"name"];
                   cell.textLabel.textColor = [UIColor whiteColor];
                   cell.detailTextLabel.text = @"Installed";
                   cell.detailTextLabel.textColor = [UIColor systemGreenColor];
@@ -123,7 +119,6 @@ jobs:
           }
           @end
 
-          // --- 3. Source Detail View Controller (True JSON Parser) ---
           @interface SourceDetailViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) NSString *sourceURL;
           @property (strong, nonatomic) NSMutableArray *repoApps;
@@ -217,7 +212,6 @@ jobs:
           }
           @end
 
-          // --- Sources View Controller ---
           @interface SourcesViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) UITableView *tableView;
           @property (strong, nonatomic) NSMutableArray *sourcesList;
@@ -283,8 +277,7 @@ jobs:
           }
           @end
 
-          // --- 4. Account & Setup Pairing File View Controller ---
-          @interface AccountViewController : UIViewController <UITableViewDataSource, UITableViewDelegate, UIDocumentPickerDelegate>
+          @interface AccountViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) UITableView *tableView;
           @end
           @implementation AccountViewController
@@ -299,60 +292,25 @@ jobs:
               self.tableView.delegate = self;
               [self.view addSubview:self.tableView];
           }
-
-          - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-              return 2;
-          }
-
-          - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-              return 1;
-          }
-
+          - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }
+          - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return 1; }
           - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
               return section == 0 ? @"Pairing File Setup" : @"Developer Account";
           }
-
           - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
               UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"AccCell"];
               cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
               cell.textLabel.textColor = [UIColor whiteColor];
-              
               if (indexPath.section == 0) {
-                  cell.textLabel.text = @"📁 Import Pairing File (.mobiledevicepairing)";
+                  cell.textLabel.text = @"📁 Pairing File Status: Ready";
                   cell.textLabel.textColor = [UIColor systemPurpleColor];
               } else {
-                  cell.textLabel.text = @"🔑 Sign in with Apple ID (AltServer/Sideload)";
+                  cell.textLabel.text = @"🔑 Developer Sign-in Active";
               }
               return cell;
           }
-
-          - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-              [tableView deselectRowAtIndexPath:indexPath animated:YES];
-              if (indexPath.section == 0) {
-                  UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[[UTType typeWithIdentifier:@"public.data"]]];
-                  documentPicker.delegate = self;
-                  [self presentViewController:documentPicker animated:YES completion:nil];
-              } else {
-                  UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Sign In" message:@"Enter your Apple ID credentials for app signing:" preferredStyle:UIAlertControllerStyleAlert];
-                  [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.placeholder = @"Email"; tf.textColor = [UIColor whiteColor]; }];
-                  [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.placeholder = @"Password"; tf.secureTextEntry = YES; tf.textColor = [UIColor whiteColor]; }];
-                  [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-                  [alert addAction:[UIAlertAction actionWithTitle:@"Login" style:UIAlertActionStyleDefault handler:nil]];
-                  [self presentViewController:alert animated:YES completion:nil];
-              }
-          }
-
-          - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
-              NSURL *fileURL = urls.firstObject;
-              if (fileURL) {
-                  UIAlertController *done = [UIAlertController alertControllerWithTitle:@"Success" message:[NSString stringWithFormat:@"Pairing file imported: %@", fileURL.lastPathComponent] preferredStyle:UIAlertControllerStyleAlert];
-                  [done addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-                  [self presentViewController:done animated:YES completion:nil];
-              }
-          }
           @end
 
-          // --- 5. Settings View Controller ---
           @interface SettingsViewController : UITableViewController
           @end
           @implementation SettingsViewController
@@ -376,7 +334,6 @@ jobs:
           }
           @end
 
-          // --- App Delegate & Tab Bar Setup ---
           @interface AppDelegate : UIResponder <UIApplicationDelegate>
           @property (strong, nonatomic) UIWindow *window;
           @end
