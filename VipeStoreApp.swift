@@ -4,12 +4,12 @@ import SwiftUI
 struct VipeStoreApp: App {
     var body: some Scene {
         WindowGroup {
-            VipeStoreContentView()
+            ContentView()
         }
     }
 }
 
-struct VipeStoreContentView: View {
+struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
@@ -75,7 +75,7 @@ struct VipeStoreContentView: View {
                                 Spacer()
                                 
                                 Button(action: {
-                                    // زر التثبيت
+                                    // إجراء التثبيت
                                 }) {
                                     Text("تثبيت")
                                         .font(.subheadline)
