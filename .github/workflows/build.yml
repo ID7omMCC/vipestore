@@ -16,7 +16,7 @@ jobs:
           # 1. إنشاء هيكل التطبيق
           mkdir -p Payload/VipeStore.app
 
-          # 2. إنشاء كود C سليم ونظيف بصياغة صحيحة 100%
+          # 2. إنشاء كود C سليم ونظيف
           cat << 'EOF' > main.c
           #include <stdio.h>
           int main() {
@@ -25,11 +25,11 @@ jobs:
           }
           EOF
 
-          # ترجمة الملف خصيصاً لنواة arm64 بصيغة Mach-O الرسمية بدون أخطاء
+          # ترجمة الملف خصيصاً لنواة arm64 بصيغة Mach-O الرسمية
           clang -arch arm64 main.c -o Payload/VipeStore.app/VipeStore
           chmod +x Payload/VipeStore.app/VipeStore
 
-          # 3. إنشاء ملف Info.plist النظامي المتكامل
+          # 3. إنشاء ملف Info.plist يدعم من iOS 17 وطالع بلا حدود
           cat << 'EOF' > Payload/VipeStore.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -44,15 +44,15 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>1.0</string>
+              <string>6.0</string>
               <key>CFBundleShortVersionString</key>
-              <string>1.0</string>
+              <string>6.0</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
               <true/>
               <key>MinimumOSVersion</key>
-              <string>14.0</string>
+              <string>17.0</string>
               <key>UIDeviceFamily</key>
               <array>
                   <integer>1</integer>
