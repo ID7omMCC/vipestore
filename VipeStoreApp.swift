@@ -4,77 +4,96 @@ import SwiftUI
 struct VipeStoreApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            VipeStoreContentView()
         }
     }
 }
 
-struct ContentView: View {
+struct VipeStoreContentView: View {
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                // هيدر التطبيق
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("VipeStore")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                        Text("متجر التطبيقات المخصص")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+            ZStack {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 20) {
+                    // هيدر المتجر
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("VipeStore")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                            Text("متجر التطبيقات المخصص")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(.yellow)
+                            .padding()
+                            .background(Color.blue.opacity(0.1))
+                            .clipShape(Circle())
                     }
-                    Spacer()
-                    Image(systemName: "shield.fill")
-                        .font(.system(size: 35))
-                        .foregroundColor(.blue)
-                }
-                .padding(.horizontal)
+                    .padding(.horizontal)
+                    .padding(.top)
 
-                // بطاقة ترحيبية
-                ZStack {
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(LinearGradient(gradient: Gradient(colors: [.blue, .purple]), startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(height: 140)
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("أهلاً بك في VipeStore")
+                    // بطاقة ترحيبية
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("مرحباً بك في عالم التثبيت")
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
-                        Text("حمل أدواتك وتطبيقاتك المفضلة بكل سهولة وأمان.")
+                        Text("حمل أدواتك، ألعابك، وتطبيقاتك المفضلة بكل سهولة وأمان.")
                             .font(.body)
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(.white.opacity(0.9))
                     }
                     .padding()
-                }
-                .padding(.horizontal)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        LinearGradient(gradient: Gradient(colors: [.blue, .purple]), startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .cornerRadius(16)
+                    .padding(.horizontal)
 
-                // قائمة التطبيقات أو الأدوات المتاحة
-                List {
-                    Section(header: Text("التطبيقات المميزة")) {
-                        HStack {
-                            Image(systemName: "hammer.fill")
-                                .foregroundColor(.orange)
-                                .font(.title2)
-                            VStack(alignment: .leading) {
-                                Text("أداة الجيلبريك والتخصيص")
-                                    .fontWeight(.semibold)
-                                Text("الإصدار 1.0 • جاهز للتحميل")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                    // قائمة التطبيقات
+                    List {
+                        Section(header: Text("الأدوات المتاحة")) {
+                            HStack(spacing: 15) {
+                                Image(systemName: "app.badge.fill")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.blue)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("VipeStore Core")
+                                        .font(.headline)
+                                    Text("الإصدار 1.0 • متوافق مع النظام")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    // زر التثبيت
+                                }) {
+                                    Text("تثبيت")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                }
                             }
-                            Spacer()
-                            Button("تثبيت") {
-                                // إجراء التثبيت
-                            }
-                            .buttonStyle(.borderedProminent)
+                            .padding(.vertical, 4)
                         }
-                        .padding(.vertical, 4)
                     }
-                }
-                .listStyle(InsetGroupedListStyle())
+                    .listStyle(InsetGroupedListStyle())
 
-                Spacer()
+                    Spacer()
+                }
             }
             .navigationBarHidden(true)
         }
