@@ -16,26 +16,221 @@ jobs:
           rm -rf Payload VipeStore.ipa
           mkdir -p Payload/VipeStore.app
           
-          # إنشاء ملف Objective-C رئيسي مع إعداد النافذة والواجهات بوضوح لمنع الشاشة السوداء
-          cat << 'EOF' > main_fixed.m
+          # تجميع ملف الكود المصدري الحقيقي المتكامل مع الـ JSON Parser الحقيقي
+          cat << 'EOF' > main_complete.m
           #import <UIKit/UIKit.h>
 
-          @interface HomeViewController : UIViewController
+          // --- Persistence Manager ---
+          @interface PersistenceManager : NSObject
+          + (void)saveSources:(NSArray *)sources;
+          + (NSMutableArray *)loadSources;
+          + (void)saveInstalledApps:(NSArray *)apps;
+          + (NSMutableArray *)loadInstalledApps;
           @end
-          @implementation HomeViewController
-          - (void)viewDidLoad {
-              [super viewDidLoad];
-              self.view.backgroundColor = [UIColor colorWithRed:0.1 green:0.1 blue:0.15 alpha:1.0];
-              
-              UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, 100, self.view.bounds.size.width - 40, 50)];
-              label.text = @"VipeStore Engine Active";
-              label.textColor = [UIColor whiteColor];
-              label.font = [UIFont boldSystemFontOfSize:22];
-              label.textAlignment = NSTextAlignmentCenter;
-              [self.view addSubview:label];
+
+          @implementation PersistenceManager
+          + (void)saveSources:(NSArray *)sources {
+              [[NSUserDefaults standardUserDefaults] setObject:sources forKey:@"VipeStore_Sources"];
+              [[NSUserDefaults standardUserDefaults] synchronize];
+          }
+
+          + (NSMutableArray *)loadSources {
+              NSArray *saved = [[NSUserDefaults standardUserDefaults] arrayForKey:@"VipeStore_Sources"];
+              if (!saved) {
+                  return [NSMutableArray arrayWithArray:@[@"https://apps.altstore.io"]];
+              }
+              return [saved mutableCopy];
+          }
+
+          + (void)saveInstalledApps:(NSArray *)apps {
+              [[NSUserDefaults standardUserDefaults] setObject:apps forKey:@"VipeStore_InstalledApps"];
+              [[NSUserDefaults standardUserDefaults] synchronize];
+          }
+
+          + (NSMutableArray *)loadInstalledApps {
+              NSArray *saved = [[NSUserDefaults standardUserDefaults] arrayForKey:@"VipeStore_InstalledApps"];
+              if (!saved) {
+                  return [NSMutableArray arrayWithArray:@[]];
+              }
+              return [saved mutableCopy];
           }
           @end
 
+          // --- Source Detail View Controller (True JSON Parser) ---
+          @interface SourceDetailViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
+          @property (strong, nonatomic) NSString *sourceURL;
+          @property (strong, nonatomic) NSMutableArray *repoApps;
+          @property (strong, nonatomic) UIActivityIndicatorView *spinner;
+          @end
+
+          @implementation SourceDetailViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              self.title = @"Repository Apps";
+              self.repoApps = [NSMutableArray array];
+
+              self.spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+              self.spinner.center = self.view.center;
+              self.spinner.color = [UIColor whiteColor];
+              [self.view addSubview:self.spinner];
+
+              UITableView *tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
+              tableView.backgroundColor = [UIColor clearColor];
+              tableView.dataSource = self;
+              tableView.delegate = self;
+              tableView.tag = 101;
+              [self.view addSubview:tableView];
+
+              [self fetchLiveSourceData];
+          }
+
+          - (void)fetchLiveSourceData {
+              [self.spinner startAnimating];
+              NSURL *url = [NSURL URLWithString:self.sourceURL];
+              if (!url) {
+                  [self.spinner stopAnimating];
+                  return;
+              }
+
+              NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+                  dispatch_async(dispatch_get_main_queue(), ^{
+                      [self.spinner stopAnimating];
+                      if (data && !error) {
+                          NSError *jsonError = nil;
+                          NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+                          if (!jsonError && [json isKindOfClass:[NSDictionary class]]) {
+                              NSArray *apps = json[@"apps"];
+                              [self.repoApps removeAllObjects];
+                              if (apps && [apps isKindOfClass:[NSArray class]]) {
+                                  for (NSDictionary *app in apps) {
+                                      NSString *name = app[@"name"] ? app[@"name"] : @"Unknown App";
+                                      NSString *version = app[@"version"] ? app[@"version"] : @"1.0";
+                                      NSString *desc = app[@"localizedDescription"] ? app[@"localizedDescription"] : (app[@"subtitle"] ? app[@"subtitle"] : @"No description");
+                                      [self.repoApps addObject:@{@"name": name, @"version": version, @"desc": desc}];
+                                  }
+                              }
+                              UITableView *tv = (UITableView *)[self.view viewWithTag:101];
+                              [tv reloadData];
+                          }
+                      }
+                  });
+              }];
+              [task resume];
+          }
+
+          - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+              return self.repoApps.count;
+          }
+
+          - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+              UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"RepoCell"];
+              if (!cell) {
+                  cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"RepoCell"];
+              }
+              if (indexPath.row < self.repoApps.count) {
+                  NSDictionary *app = self.repoApps[indexPath.row];
+                  cell.textLabel.text = app[@"name"];
+                  cell.textLabel.textColor = [UIColor whiteColor];
+                  cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ • %@", app[@"version"], app[@"desc"]];
+                  cell.detailTextLabel.textColor = [UIColor lightGrayColor];
+              }
+              cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
+
+              UIButton *getBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+              getBtn.frame = CGRectMake(0, 0, 60, 30);
+              getBtn.backgroundColor = [UIColor systemPurpleColor];
+              [getBtn setTitle:@"GET" forState:UIControlStateNormal];
+              [getBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+              getBtn.titleLabel.font = [UIFont boldSystemFontOfSize:13];
+              getBtn.layer.cornerRadius = 15;
+              cell.accessoryView = getBtn;
+
+              return cell;
+          }
+          @end
+
+          // --- Sources View Controller ---
+          @interface SourcesViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
+          @property (strong, nonatomic) UITableView *tableView;
+          @property (strong, nonatomic) NSMutableArray *sourcesList;
+          @end
+
+          @implementation SourcesViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              CGFloat screenWidth = self.view.bounds.size.width;
+              CGFloat screenHeight = self.view.bounds.size.height;
+              
+              UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, 70, screenWidth - 100, 40)];
+              label.text = @"Sources";
+              label.textColor = [UIColor whiteColor];
+              label.font = [UIFont boldSystemFontOfSize:30];
+              [self.view addSubview:label];
+              
+              UIButton *addSourceBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+              addSourceBtn.frame = CGRectMake(screenWidth - 60, 70, 40, 40);
+              [addSourceBtn setTitle:@"+" forState:UIControlStateNormal];
+              [addSourceBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+              addSourceBtn.titleLabel.font = [UIFont boldSystemFontOfSize:28];
+              addSourceBtn.backgroundColor = [UIColor systemPurpleColor];
+              addSourceBtn.layer.cornerRadius = 20;
+              [addSourceBtn addTarget:self action:@selector(addSourcePrompt) forControlEvents:UIControlEventTouchUpInside];
+              [self.view addSubview:addSourceBtn];
+              
+              self.sourcesList = [PersistenceManager loadSources];
+              
+              self.tableView = [[UITableView alloc] initWithFrame:CGRectMake(0, 130, screenWidth, screenHeight - 200) style:UITableViewStyleInsetGrouped];
+              self.tableView.backgroundColor = [UIColor clearColor];
+              self.tableView.dataSource = self;
+              self.tableView.delegate = self;
+              [self.view addSubview:self.tableView];
+          }
+
+          - (void)addSourcePrompt {
+              UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Add Source JSON" message:@"Enter repository URL:" preferredStyle:UIAlertControllerStyleAlert];
+              [alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
+                  textField.placeholder = @"https://...";
+                  textField.textColor = [UIColor whiteColor];
+              }];
+              [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+              [alert addAction:[UIAlertAction actionWithTitle:@"Add" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                  NSString *url = alert.textFields.firstObject.text;
+                  if (url.length > 0) {
+                      [self.sourcesList addObject:url];
+                      [PersistenceManager saveSources:self.sourcesList];
+                      [self.tableView reloadData];
+                  }
+              }]];
+              [self presentViewController:alert animated:YES completion:nil];
+          }
+
+          - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+              return self.sourcesList.count;
+          }
+
+          - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+              UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"SourceCell"];
+              if (!cell) {
+                  cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"SourceCell"];
+              }
+              cell.textLabel.text = self.sourcesList[indexPath.row];
+              cell.textLabel.textColor = [UIColor whiteColor];
+              cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
+              cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+              return cell;
+          }
+
+          - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+              [tableView deselectRowAtIndexPath:indexPath animated:YES];
+              SourceDetailViewController *detailVC = [[SourceDetailViewController alloc] init];
+              detailVC.sourceURL = self.sourcesList[indexPath.row];
+              [self.navigationController pushViewController:detailVC animated:YES];
+          }
+          @end
+
+          // --- App Delegate ---
           @interface AppDelegate : UIResponder <UIApplicationDelegate>
           @property (strong, nonatomic) UIWindow *window;
           @end
@@ -43,8 +238,8 @@ jobs:
           @implementation AppDelegate
           - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
               self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-              HomeViewController *homeVC = [[HomeViewController alloc] init];
-              UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:homeVC];
+              SourcesViewController *sourcesVC = [[SourcesViewController alloc] init];
+              UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:sourcesVC];
               self.window.rootViewController = nav;
               [self.window makeKeyAndVisible];
               return YES;
@@ -58,14 +253,14 @@ jobs:
           }
           EOF
 
-          xcrun -sdk iphoneos clang -arch arm64 -fobjc-arc main_fixed.m \
+          xcrun -sdk iphoneos clang -arch arm64 -fobjc-arc main_complete.m \
             -o Payload/VipeStore.app/VipeStore \
             -framework UIKit -framework Foundation -framework CoreGraphics
 
           chmod +x Payload/VipeStore.app/VipeStore
-          rm -f main_fixed.m
+          rm -f main_complete.m
 
-          # إنشاء Info.plist متوافق
+          # إنشاء Info.plist المتوافق
           cat << 'EOF' > Payload/VipeStore.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -80,9 +275,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>6.2</string>
+              <string>7.0</string>
               <key>CFBundleShortVersionString</key>
-              <string>6.2</string>
+              <string>7.0</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
