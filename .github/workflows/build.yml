@@ -13,6 +13,8 @@ jobs:
 
       - name: Build Native Standalone App
         run: |
+          # تنظيف أي مجلدات سابقة وضمان هيكلة Payload السليمة 100%
+          rm -rf Payload VipeStore.ipa
           mkdir -p Payload/VipeStore.app
 
           cat << 'EOF' > main.m
@@ -51,7 +53,7 @@ jobs:
           }
           @end
 
-          // --- My Apps View Controller (New) ---
+          // --- My Apps View Controller ---
           @interface MyAppsViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) UITableView *tableView;
           @property (strong, nonatomic) NSMutableArray *appsList;
@@ -68,7 +70,7 @@ jobs:
               [self.view addSubview:label];
               
               self.appsList = [NSMutableArray arrayWithArray:@[
-                  @{@"name": @"VipeStore Client", @"version": @"v2.0", @"status": @"Active"},
+                  @{@"name": @"VipeStore Client", @"version": @"v2.5", @"status": @"Active"},
                   @{@"name": @"Mock App Example", @"version": @"v1.1", @"status": @"Active"}
               ]];
               
@@ -134,8 +136,8 @@ jobs:
           }
           @end
 
-          // --- Account View Controller (Apple ID Login) ---
-          @interface AccountViewController : UIViewController <UITextFieldDelegate>
+          // --- Account View Controller ---
+          @interface AccountViewController : UIViewController
           @property (strong, nonatomic) UITextField *emailField;
           @property (strong, nonatomic) UITextField *passwordField;
           @end
@@ -156,7 +158,6 @@ jobs:
               subLabel.font = [UIFont systemFontOfSize:14];
               [self.view addSubview:subLabel];
               
-              // Email Field
               self.emailField = [[UITextField alloc] initWithFrame:CGRectMake(20, 170, self.view.frame.size.width - 40, 50)];
               self.emailField.placeholder = @"Apple ID Email";
               self.emailField.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
@@ -166,9 +167,8 @@ jobs:
               self.emailField.leftViewMode = UITextFieldViewModeAlways;
               [self.view addSubview:self.emailField];
               
-              // Password Field
               self.passwordField = [[UITextField alloc] initWithFrame:CGRectMake(20, 235, self.view.frame.size.width - 40, 50)];
-              self.passwordField.placeholder = @"Password / App-Specific Password";
+              self.passwordField.placeholder = @"App-Specific Password";
               self.passwordField.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
               self.passwordField.textColor = [UIColor whiteColor];
               self.passwordField.secureTextEntry = YES;
@@ -177,7 +177,6 @@ jobs:
               self.passwordField.leftViewMode = UITextFieldViewModeAlways;
               [self.view addSubview:self.passwordField];
               
-              // Sign In Button
               UIButton *loginBtn = [UIButton buttonWithType:UIButtonTypeSystem];
               loginBtn.frame = CGRectMake(20, 310, self.view.frame.size.width - 40, 50);
               loginBtn.backgroundColor = [UIColor systemPurpleColor];
@@ -234,7 +233,7 @@ jobs:
               sourcesVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Sources" image:[UIImage systemImageNamed:@"globe"] tag:2];
               
               AccountViewController *accountVC = [[AccountViewController alloc] init];
-              accountVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Account" image:[UIImage systemImageNamed:@"person.crop.circle.fill"] tag:3];
+              accountVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Account" image:[UIImage systemImageNamed::"person.crop.circle.fill"] tag:3];
               
               SettingsViewController *settingsVC = [[SettingsViewController alloc] init];
               settingsVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Settings" image:[UIImage systemImageNamed:@"gearshape.fill"] tag:4];
@@ -256,17 +255,18 @@ jobs:
           }
           EOF
 
+          # ترجمة الكود ووضعه في المسار الصحيح للمجلد المراد
           xcrun -sdk iphoneos clang -arch arm64 -fobjc-arc main.m \
             -o Payload/VipeStore.app/VipeStore \
             -framework UIKit -framework Foundation -framework CoreGraphics
 
           chmod +x Payload/VipeStore.app/VipeStore
 
-      - name: Create Info.plist & App Resources
+      - name: Create Info.plist & Package IPA
         run: |
           cat << 'EOF' > Payload/VipeStore.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
-          DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
               <key>CFBundleIdentifier</key>
@@ -278,9 +278,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>2.5</string>
+              <string>2.6</string>
               <key>CFBundleShortVersionString</key>
-              <string>2.5</string>
+              <string>2.6</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
@@ -303,8 +303,7 @@ jobs:
           </plist>
           EOF
 
-      - name: Package Final IPA
-        run: |
+          # ضغط المجلد بالصيغة القياسية ليتعرف عليها متجر التثبيت مباشرة
           zip -r VipeStore.ipa Payload
 
       - name: Upload Artifact
