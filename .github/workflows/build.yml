@@ -1,4 +1,4 @@
-name: Build Real VipeStore IPA
+name: Build Real VipeStore Native iOS App
 
 on:
   push:
@@ -11,28 +11,130 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build Mach-O iOS App
+      - name: Create Native Swift App Code
         run: |
-          # 1. إنشاء هيكل التطبيق بالاسم الصحيح
-          mkdir -p Payload/VipeStore.app
+          mkdir -p AppSource
 
-          # 2. إنشاء كود C سليم ونظيف
-          cat << 'EOF' > main.c
-          #include <stdio.h>
-          int main() {
-              printf("VipeStore Mach-O Initialized Successfully\n");
-              return 0;
+          # 1. كود Swift لواجهة المتجر العصري
+          cat << 'EOF' > AppSource/VipeStoreApp.swift
+          import SwiftUI
+
+          struct AppItem: Identifiable {
+              let id = UUID()
+              let name: String
+              let category: String
+              let icon: String
+              let version: String
+          }
+
+          struct ContentView: View {
+              let apps = [
+                  AppItem(name: "Minecraft Tools", category: "Games & Mods", icon: "gamecontroller.fill", version: "v1.21"),
+                  AppItem(name: "Discord Helper", category: "Utilities", icon: "bubble.left.and.bubble.right.fill", version: "v2.0"),
+                  AppItem(name: "Media Player Pro", category: "Entertainment", icon: "play.tv.fill", version: "v1.5"),
+                  AppItem(name: "Gaming Booster", category: "Tools", icon: "bolt.fill", version: "v3.1")
+              ]
+
+              var body: some View {
+                  NavigationView {
+                      ZStack {
+                          Color.black.edgesIgnoringSafeArea(.all)
+                          
+                          ScrollView {
+                              VStack(alignment: .leading, spacing: 20) {
+                                  // Banner Header
+                                  VStack(alignment: .leading, spacing: 8) {
+                                      Text("مرحباً بك في VipeStore")
+                                          .font(.largeTitle)
+                                          .fontWeight(.bold)
+                                          .foregroundColor(.white)
+                                      
+                                      Text("متجرك الشخصي للتطبيقات والأدوات")
+                                          .font(.subheadline)
+                                          .foregroundColor(.gray)
+                                  }
+                                  .padding(.horizontal)
+                                  .padding(.top)
+
+                                  Divider().background(Color.gray.opacity(0.3))
+
+                                  // App List
+                                  VStack(spacing: 15) {
+                                      ForEach(apps) { app in
+                                          HStack(spacing: 15) {
+                                              Image(systemName: app.icon)
+                                                  .resizable()
+                                                  .scaledToFit()
+                                                  .frame(width: 30, height: 30)
+                                                  .foregroundColor(.purple)
+                                                  .padding(12)
+                                                  .background(Color.white.opacity(0.1))
+                                                  .cornerRadius(12)
+
+                                              VStack(alignment: .leading, spacing: 4) {
+                                                  Text(app.name)
+                                                      .font(.headline)
+                                                      .foregroundColor(.white)
+                                                  Text("\(app.category) • \(app.version)")
+                                                      .font(.caption)
+                                                      .foregroundColor(.gray)
+                                              }
+
+                                              Spacer()
+
+                                              Button(action: {
+                                                  // Action for downloading
+                                              }) {
+                                                  Text("تثبيت")
+                                                      .font(.subheadline)
+                                                      .fontWeight(.bold)
+                                                      .foregroundColor(.white)
+                                                      .padding(.horizontal, 16)
+                                                      .padding(.vertical, 8)
+                                                      .background(Color.purple)
+                                                      .cornerRadius(20)
+                                              }
+                                          }
+                                          .padding()
+                                          .background(Color.white.opacity(0.05))
+                                          .cornerRadius(16)
+                                      }
+                                  }
+                                  .padding(.horizontal)
+                              }
+                          }
+                      }
+                      .navigationBarHidden(true)
+                  }
+              }
+          }
+
+          @main
+          struct VipeStoreApp: App {
+              var body: some Scene {
+                  WindowGroup {
+                      ContentView()
+                  }
+              }
           }
           EOF
 
-          # 3. السر هنا: ترجمة الكود حصرياً لنظام iOS الحقيقي وليس الـ macOS
-          xcrun -sdk iphoneos clang -arch arm64 main.c -o Payload/VipeStore.app/VipeStore
+      - name: Build Native iOS Executable using Swiftc
+        run: |
+          mkdir -p Payload/VipeStore.app
+
+          # ترجمة كود Swift لنواة iOS arm64 بشكل رسمي وبدون أخطاء
+          xcrun -sdk iphoneos swiftc -target arm64-apple-ios17.0 \
+            AppSource/VipeStoreApp.swift \
+            -o Payload/VipeStore.app/VipeStore
+
           chmod +x Payload/VipeStore.app/VipeStore
 
-          # 4. إنشاء ملف Info.plist متوافق تماماً وموجه لنظام iOS
+      - name: Generate Info.plist & Assets
+        run: |
           cat << 'EOF' > Payload/VipeStore.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.plist">
           <plist version="1.0">
           <dict>
               <key>CFBundleIdentifier</key>
@@ -44,9 +146,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>8.0</string>
+              <string>1.0.0</string>
               <key>CFBundleShortVersionString</key>
-              <string>8.0</string>
+              <string>1.0.0</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
@@ -69,10 +171,11 @@ jobs:
           </plist>
           EOF
 
-          # 5. ضغط الحزمة إلى IPA نهائي
+      - name: Package IPA
+        run: |
           zip -r VipeStore.ipa Payload
 
-      - name: Upload IPA Artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: VipeStore-IPA
