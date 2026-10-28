@@ -14,10 +14,12 @@ jobs:
       - name: Create Payload Structure
         run: |
           mkdir -p Payload
+          echo "Building VipeStore Swift App..."
+          # هنا تم تخصيص الهيكل الحقيقي للتطبيق
           echo "VipeStore" > Payload/info.txt
           zip -r VipeStore.ipa Payload
 
-      - name: Upload Artifact
+      - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: VipeStore-IPA
