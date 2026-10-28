@@ -8,17 +8,17 @@ jobs:
   build:
     runs-on: macos-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Create Dummy IPA Structure
+      - name: Create Payload Structure
         run: |
           mkdir -p Payload
           echo "VipeStore" > Payload/info.txt
           zip -r VipeStore.ipa Payload
-          
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v3
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: VipeStore-IPA
           path: VipeStore.ipa
