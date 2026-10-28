@@ -15,10 +15,129 @@ jobs:
         run: |
           mkdir -p Payload/VipeStore.app
 
-          # كود تطبيق iOS حقيقي متكامل ومستقل لا يكرش مطلقاً
           cat << 'EOF' > main.m
           #import <UIKit/UIKit.h>
 
+          // --- Home View Controller ---
+          @interface HomeViewController : UIViewController
+          @end
+          @implementation HomeViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              
+              UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, 100, self.view.frame.size.width - 40, 40)];
+              label.text = @"Home";
+              label.textColor = [UIColor whiteColor];
+              label.font = [UIFont boldSystemFontOfSize:32];
+              [self.view addSubview:label];
+              
+              UIView *card = [[UIView alloc] initWithFrame:CGRectMake(20, 160, self.view.frame.size.width - 40, 120)];
+              card.backgroundColor = [UIColor colorWithRed:0.15 green:0.12 blue:0.25 alpha:1.0];
+              card.layer.cornerRadius = 16;
+              [self.view addSubview:card];
+              
+              UILabel *cardTitle = [[UILabel alloc] initWithFrame:CGRectMake(15, 20, card.frame.size.width - 30, 30)];
+              cardTitle.text = @"Welcome to VipeStore";
+              cardTitle.textColor = [UIColor whiteColor];
+              cardTitle.font = [UIFont boldSystemFontOfSize:20];
+              [card addSubview:cardTitle];
+          }
+          @end
+
+          // --- Sources View Controller ---
+          @interface SourcesViewController : UIViewController
+          @end
+          @implementation SourcesViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              
+              UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, 100, self.view.frame.size.width - 40, 40)];
+              label.text = @"Sources";
+              label.textColor = [UIColor whiteColor];
+              label.font = [UIFont boldSystemFontOfSize:32];
+              [self.view addSubview:label];
+          }
+          @end
+
+          // --- Account View Controller ---
+          @interface AccountViewController : UIViewController
+          @end
+          @implementation AccountViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              
+              UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, 100, self.view.frame.size.width - 40, 40)];
+              label.text = @"Account";
+              label.textColor = [UIColor whiteColor];
+              label.font = [UIFont boldSystemFontOfSize:32];
+              [self.view addSubview:label];
+          }
+          @end
+
+          // --- Settings View Controller ---
+          @interface SettingsViewController : UIViewController
+          @end
+          @implementation SettingsViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              
+              UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(20, 100, self.view.frame.size.width - 40, 40)];
+              label.text = @"Settings";
+              label.textColor = [UIColor whiteColor];
+              label.font = [UIFont boldSystemFontOfSize:32];
+              [self.view addSubview:label];
+          }
+          @end
+
+          // --- Setup View Controller ---
+          @interface SetupViewController : UIViewController
+          @property (nonatomic, copy) void (^onSetupComplete)(void);
+          @end
+          @implementation SetupViewController
+          - (void)viewDidLoad {
+              [super viewDidLoad];
+              self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
+              
+              UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 200, self.view.frame.size.width - 40, 40)];
+              titleLabel.text = @"Initial Setup";
+              titleLabel.textColor = [UIColor whiteColor];
+              titleLabel.textAlignment = NSTextAlignmentCenter;
+              titleLabel.font = [UIFont boldSystemFontOfSize:30];
+              [self.view addSubview:titleLabel];
+              
+              UILabel *subLabel = [[UILabel alloc] initWithFrame:CGRectMake(30, 250, self.view.frame.size.width - 60, 60)];
+              subLabel.text = @"Configure VipeStore sideloading engine for first-time use.";
+              subLabel.textColor = [UIColor lightGrayColor];
+              subLabel.textAlignment = NSTextAlignmentCenter;
+              subLabel.numberOfLines = 2;
+              subLabel.font = [UIFont systemFontOfSize:16];
+              [self.view addSubview:subLabel];
+              
+              UIButton *btn = [UIButton buttonWithType:UIButtonTypeSystem];
+              btn.frame = CGRectMake(50, 360, self.view.frame.size.width - 100, 50);
+              btn.backgroundColor = [UIColor systemPurpleColor];
+              [btn setTitle:@"Complete Setup" forState:UIControlStateNormal];
+              [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+              btn.titleLabel.font = [UIFont boldSystemFontOfSize:18];
+              btn.layer.cornerRadius = 14;
+              [btn addTarget:self action:@selector(finishSetup) forControlEvents:UIControlEventTouchUpInside];
+              [self.view addSubview:btn];
+          }
+
+          - (void)finishSetup {
+              [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"HasCompletedSetup"];
+              [[NSUserDefaults standardUserDefaults] synchronize];
+              if (self.onSetupComplete) {
+                  self.onSetupComplete();
+              }
+          }
+          @end
+
+          // --- App Delegate ---
           @interface AppDelegate : UIResponder <UIApplicationDelegate>
           @property (strong, nonatomic) UIWindow *window;
           @end
@@ -27,42 +146,48 @@ jobs:
           - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
               self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
               
-              UIViewController *mainVC = [[UIViewController alloc] init];
-              mainVC.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0]; // أسود داكن عصري
+              BOOL hasSetup = [[NSUserDefaults standardUserDefaults] boolForKey:@"HasCompletedSetup"];
               
-              // كارت العنوان والتصميم
-              UIView *cardView = [[UIView alloc] initWithFrame:CGRectMake(20, 100, self.window.frame.size.width - 40, 180)];
-              cardView.backgroundColor = [UIColor colorWithRed:0.15 green:0.12 blue:0.25 alpha:1.0];
-              cardView.layer.cornerRadius = 20;
-              [mainVC.view addSubview:cardView];
-
-              UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(15, 30, cardView.frame.size.width - 30, 40)];
-              titleLabel.text = @"VipeStore Sideloader";
-              titleLabel.textColor = [UIColor whiteColor];
-              titleLabel.textAlignment = NSTextAlignmentCenter;
-              titleLabel.font = [UIFont boldSystemFontOfSize:26];
-              [cardView addSubview:titleLabel];
-
-              UILabel *subTitle = [[UILabel alloc] initWithFrame:CGRectMake(15, 75, cardView.frame.size.width - 30, 30)];
-              subTitle.text = @"Standalone Client v1.0 • Ready";
-              subTitle.textColor = [UIColor colorWithRed:0.7 green:0.6 blue:1.0 alpha:1.0];
-              subTitle.textAlignment = NSTextAlignmentCenter;
-              subTitle.font = [UIFont systemFontOfSize:15];
-              [cardView addSubview:subTitle];
-
-              // زر التثبيت والتفاعل
-              UIButton *btn = [UIButton buttonWithType:UIButtonTypeSystem];
-              btn.frame = CGRectMake(40, 120, cardView.frame.size.width - 80, 44);
-              btn.backgroundColor = [UIColor colorWithRed:0.5 green:0.2 blue:0.9 alpha:1.0];
-              [btn setTitle:@"Install Apps" forState:UIControlStateNormal];
-              [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-              btn.titleLabel.font = [UIFont boldSystemFontOfSize:17];
-              btn.layer.cornerRadius = 12;
-              [cardView addSubview:btn];
-
-              self.window.rootViewController = mainVC;
+              if (!hasSetup) {
+                  [self showSetupScreen];
+              } else {
+                  [self showMainTabBar];
+              }
+              
               [self.window makeKeyAndVisible];
               return YES;
+          }
+
+          - (void)showSetupScreen {
+              SetupViewController *setupVC = [[SetupViewController alloc] init];
+              __weak typeof(self) weakSelf = self;
+              setupVC.onSetupComplete = ^{
+                  [weakSelf showMainTabBar];
+              };
+              self.window.rootViewController = setupVC;
+          }
+
+          - (void)showMainTabBar {
+              UITabBarController *tabBarController = [[UITabBarController alloc] init];
+              
+              HomeViewController *homeVC = [[HomeViewController alloc] init];
+              homeVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Home" image:[UIImage systemImageNamed:@"house.fill"] tag:0];
+              
+              SourcesViewController *sourcesVC = [[SourcesViewController alloc] init];
+              sourcesVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Sources" image:[UIImage systemImageNamed:@"square.stack.3d.up.fill"] tag:1];
+              
+              AccountViewController *accountVC = [[AccountViewController alloc] init];
+              accountVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Account" image:[UIImage systemImageNamed:@"person.crop.circle.fill"] tag:2];
+              
+              SettingsViewController *settingsVC = [[SettingsViewController alloc] init];
+              settingsVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Settings" image:[UIImage systemImageNamed:@"gearshape.fill"] tag:3];
+              
+              tabBarController.viewControllers = @[homeVC, sourcesVC, accountVC, settingsVC];
+              tabBarController.tabBar.barTintColor = [UIColor colorWithRed:0.1 green:0.1 blue:0.12 alpha:1.0];
+              tabBarController.tabBar.tintColor = [UIColor systemPurpleColor];
+              tabBarController.tabBar.unselectedItemTintColor = [UIColor grayColor];
+              
+              self.window.rootViewController = tabBarController;
           }
           @end
 
@@ -73,7 +198,6 @@ jobs:
           }
           EOF
 
-          # بناء التطبيق وموافقته مع قواعد iOS وإضافة الـ Frameworks المطلوبة
           xcrun -sdk iphoneos clang -arch arm64 -fobjc-arc main.m \
             -o Payload/VipeStore.app/VipeStore \
             -framework UIKit -framework Foundation -framework CoreGraphics
@@ -84,7 +208,7 @@ jobs:
         run: |
           cat << 'EOF' > Payload/VipeStore.app/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.plist">
           <plist version="1.0">
           <dict>
               <key>CFBundleIdentifier</key>
@@ -96,9 +220,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>1.0</string>
+              <string>2.0</string>
               <key>CFBundleShortVersionString</key>
-              <string>1.0</string>
+              <string>2.0</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
