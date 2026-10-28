@@ -41,7 +41,7 @@ jobs:
               [self.view addSubview:card];
               
               UILabel *cardTitle = [[UILabel alloc] initWithFrame:CGRectMake(15, 20, card.frame.size.width - 30, 30)];
-              cardTitle.text = @"VipeStore Engine v3.0";
+              cardTitle.text = @"VipeStore Engine v3.1";
               cardTitle.textColor = [UIColor whiteColor];
               cardTitle.font = [UIFont boldSystemFontOfSize:20];
               cardTitle.autoresizingMask = UIViewAutoresizingFlexibleWidth;
@@ -57,7 +57,7 @@ jobs:
           }
           @end
 
-          // --- My Apps View Controller (With Functional Add "+" Button) ---
+          // --- My Apps View Controller ---
           @interface MyAppsViewController : UIViewController <UITableViewDataSource, UITableViewDelegate, UIDocumentPickerDelegate>
           @property (strong, nonatomic) UITableView *tableView;
           @property (strong, nonatomic) NSMutableArray *appsList;
@@ -75,7 +75,6 @@ jobs:
               label.font = [UIFont boldSystemFontOfSize:30];
               [self.view addSubview:label];
               
-              // Add "+" Button to import IPAs
               UIButton *addBtn = [UIButton buttonWithType:UIButtonTypeSystem];
               addBtn.frame = CGRectMake(screenWidth - 60, 70, 40, 40);
               [addBtn setTitle:@"+" forState:UIControlStateNormal];
@@ -87,7 +86,7 @@ jobs:
               [self.view addSubview:addBtn];
               
               self.appsList = [NSMutableArray arrayWithArray:@[
-                  @{@"name": @"VipeStore Client", @"version": @"v3.0", @"status": @"Active"},
+                  @{@"name": @"VipeStore Client", @"version": @"v3.1", @"status": @"Active"},
                   @{@"name": @"Custom Sideload App", @"version": @"v1.0", @"status": @"Active"}
               ]];
               
@@ -100,7 +99,7 @@ jobs:
           }
 
           - (void)importIPA {
-              UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[[UTType typeWithIdentifier:@"public.item"]] asCopy:YES];
+              UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[@"public.item"] inMode:UIDocumentPickerModeImport];
               documentPicker.delegate = self;
               [self presentViewController:documentPicker animated:YES completion:nil];
           }
@@ -152,7 +151,7 @@ jobs:
           }
           @end
 
-          // --- Sources View Controller (With Add Repository Button) ---
+          // --- Sources View Controller ---
           @interface SourcesViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) UITableView *tableView;
           @property (strong, nonatomic) NSMutableArray *sourcesList;
@@ -226,7 +225,7 @@ jobs:
           }
           @end
 
-          // --- Account View Controller (With 2FA / Apple ID Login Flow) ---
+          // --- Account View Controller ---
           @interface AccountViewController : UIViewController
           @property (strong, nonatomic) UITextField *emailField;
           @property (strong, nonatomic) UITextField *passwordField;
@@ -299,7 +298,7 @@ jobs:
           }
           @end
 
-          // --- Settings View Controller (With Real Options) ---
+          // --- Settings View Controller ---
           @interface SettingsViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) UITableView *tableView;
           @end
@@ -344,7 +343,7 @@ jobs:
               if (indexPath.section == 0) {
                   if (indexPath.row == 0) {
                       cell.textLabel.text = @"App Version";
-                      cell.detailTextLabel.text = @"v3.0 Standalone";
+                      cell.detailTextLabel.text = @"v3.1 Standalone";
                   } else {
                       cell.textLabel.text = @"Sideloading Engine";
                       cell.detailTextLabel.text = @"Native UIKit";
@@ -378,7 +377,7 @@ jobs:
               sourcesVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Sources" image:[UIImage systemImageNamed:@"globe"] tag:2];
               
               AccountViewController *accountVC = [[AccountViewController alloc] init];
-              accountVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Person" image:[UIImage systemImageNamed:@"person.crop.circle.fill"] tag:3];
+              accountVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Account" image:[UIImage systemImageNamed:@"person.crop.circle.fill"] tag:3];
               
               SettingsViewController *settingsVC = [[SettingsViewController alloc] init];
               settingsVC.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Settings" image:[UIImage systemImageNamed:@"gearshape.fill"] tag:4];
@@ -422,9 +421,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>3.0</string>
+              <string>3.1</string>
               <key>CFBundleShortVersionString</key>
-              <string>3.0</string>
+              <string>3.1</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
