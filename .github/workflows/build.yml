@@ -1,4 +1,4 @@
-name: Build Standalone VipeStore App
+name: Build Standalone VipeStore App with LocalDevVPN
 
 on:
   push:
@@ -18,8 +18,9 @@ jobs:
 
           cat << 'EOF' > main.m
           #import <UIKit/UIKit.h>
+          #import <NetworkExtension/NetworkExtension.h>
 
-          // --- LocalDevVPN & Persistence Manager ---
+          // --- Persistence Manager ---
           @interface PersistenceManager : NSObject
           + (void)saveSources:(NSArray *)sources;
           + (NSMutableArray *)loadSources;
@@ -36,7 +37,7 @@ jobs:
           + (NSMutableArray *)loadSources {
               NSArray *saved = [[NSUserDefaults standardUserDefaults] arrayForKey:@"VipeStore_Sources"];
               if (!saved) {
-                  return [NSMutableArray arrayWithArray:@[@"https://repo.vipe.store/apps.json", @"https://altstore.io/key.json"]];
+                  return [NSMutableArray arrayWithArray:@[@"https://apps.altstore.io"]];
               }
               return [saved mutableCopy];
           }
@@ -49,18 +50,77 @@ jobs:
           + (NSMutableArray *)loadInstalledApps {
               NSArray *saved = [[NSUserDefaults standardUserDefaults] arrayForKey:@"VipeStore_InstalledApps"];
               if (!saved) {
-                  return [NSMutableArray arrayWithArray:@[
-                      @{@"name": @"VipeStore Core", @"version": @"v4.5", @"status": @"Active • LocalDevVPN"},
-                      @{@"name": @"Delta Emulator", @"version": @"v1.4", @"status": @"Active • Local Signed"}
-                  ]];
+                  return [NSMutableArray arrayWithArray:@[]];
               }
               return [saved mutableCopy];
+          }
+          @end
+
+          // --- Real LocalDevVPN Manager ---
+          @interface LocalDevVPNManager : NSObject
+          + (instancetype)sharedManager;
+          - (void)setupAndConnectVPNWithCompletion:(void(^)(BOOL success, NSString *status))completion;
+          - (void)checkVPNStatus:(void(^)(BOOL isActive))completion;
+          @end
+
+          @implementation LocalDevVPNManager
+          + (instancetype)sharedManager {
+              static LocalDevVPNManager *manager = nil;
+              static dispatch_once_t onceToken;
+              dispatch_once(&onceToken, ^{
+                  manager = [[LocalDevVPNManager alloc] init];
+              });
+              return manager;
+          }
+
+          - (void)setupAndConnectVPNWithCompletion:(void(^)(BOOL success, NSString *status))completion {
+              [NETunnelProviderManager loadAllFromPreferencesWithCompletionHandler:^(NSArray<NETunnelProviderManager *> * _Nullable managers, NSError * _Nullable error) {
+                  NETunnelProviderManager *vpnManager = nil;
+                  if (managers.count > 0) {
+                      vpnManager = managers.firstObject;
+                  } else {
+                      vpnManager = [[NETunnelProviderManager alloc] init];
+                      NETunnelProviderProtocol *protocol = [[NETunnelProviderProtocol alloc] init];
+                      protocol.providerBundleIdentifier = @"com.vipe.store.app.vpnextension";
+                      protocol.serverAddress = @"127.0.0.1";
+                      vpnManager.protocolConfiguration = protocol;
+                      vpnManager.localizedDescription = @"VipeStore LocalDevVPN";
+                  }
+                  
+                  vpnManager.enabled = YES;
+                  [vpnManager saveToPreferencesWithCompletionHandler:^(NSError * _Nullable saveError) {
+                      if (saveError) {
+                          completion(NO, [NSString stringWithFormat:@"VPN Save Error: %@", saveError.localizedDescription]);
+                          return;
+                      }
+                      
+                      NSError *startError = nil;
+                      [vpnManager.connection startVPNTunnelAndReturnError:&startError];
+                      if (startError) {
+                          completion(NO, [NSString stringWithFormat:@"VPN Start Error: %@", startError.localizedDescription]);
+                      } else {
+                          completion(YES, @"LocalDevVPN Connected (127.0.0.1)");
+                      }
+                  }];
+              }];
+          }
+
+          - (void)checkVPNStatus:(void(^)(BOOL isActive))completion {
+              [NETunnelProviderManager loadAllFromPreferencesWithCompletionHandler:^(NSArray<NETunnelProviderManager *> * _Nullable managers, NSError * _Nullable error) {
+                  if (managers.count > 0) {
+                      NETunnelProviderManager *vpnManager = managers.firstObject;
+                      completion(vpnManager.connection.status == NEVPNStatusConnected);
+                  } else {
+                      completion(NO);
+                  }
+              }];
           }
           @end
 
           // --- Setup / Pairing View Controller ---
           @interface SetupViewController : UIViewController <UIDocumentPickerDelegate>
           @property (strong, nonatomic) UILabel *statusLabel;
+          @property (strong, nonatomic) UIButton *vpnBtn;
           @end
 
           @implementation SetupViewController
@@ -70,50 +130,55 @@ jobs:
               CGFloat screenWidth = self.view.bounds.size.width;
 
               UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 80, screenWidth - 40, 40)];
-              titleLabel.text = @"LocalDevVPN Setup";
+              titleLabel.text = @"LocalDevVPN Pairing";
               titleLabel.textColor = [UIColor whiteColor];
               titleLabel.font = [UIFont boldSystemFontOfSize:26];
               [self.view addSubview:titleLabel];
 
               UILabel *subLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 125, screenWidth - 40, 60)];
-              subLabel.text = @"Select your .mobiledevicepair file to establish a local loopback VPN tunnel (127.0.0.1) for local on-device signing.";
+              subLabel.text = @"Select your .mobiledevicepair file and start the real iOS LocalDevVPN tunnel for on-device signing.";
               subLabel.textColor = [UIColor lightGrayColor];
               subLabel.font = [UIFont systemFontOfSize:13];
               subLabel.numberOfLines = 0;
               [self.view addSubview:subLabel];
 
-              UIView *card = [[UIView alloc] initWithFrame:CGRectMake(20, 200, screenWidth - 40, 160)];
+              UIView *card = [[UIView alloc] initWithFrame:CGRectMake(20, 200, screenWidth - 40, 220)];
               card.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
               card.layer.cornerRadius = 16;
               [self.view addSubview:card];
 
-              self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(15, 20, card.frame.size.width - 30, 40)];
+              self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(15, 15, card.frame.size.width - 30, 50)];
               NSString *pairedFile = [[NSUserDefaults standardUserDefaults] stringForKey:@"PairingFileName"];
-              if (pairedFile) {
-                  self.statusLabel.text = [NSString stringWithFormat:@"Tunnel Active: %@", pairedFile];
-                  self.statusLabel.textColor = [UIColor systemGreenColor];
-              } else {
-                  self.statusLabel.text = @"LocalDevVPN: Disconnected";
-                  self.statusLabel.textColor = [UIColor systemOrangeColor];
-              }
-              self.statusLabel.font = [UIFont boldSystemFontOfSize:14];
+              self.statusLabel.text = pairedFile ? [NSString stringWithFormat:@"Paired: %@\nVPN Status: Checking...", pairedFile] : @"Pairing File Required";
+              self.statusLabel.textColor = [UIColor systemOrangeColor];
+              self.statusLabel.font = [UIFont boldSystemFontOfSize:13];
               self.statusLabel.numberOfLines = 2;
               [card addSubview:self.statusLabel];
 
               UIButton *selectPairingBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-              selectPairingBtn.frame = CGRectMake(15, 85, card.frame.size.width - 30, 45);
+              selectPairingBtn.frame = CGRectMake(15, 75, card.frame.size.width - 30, 45);
               selectPairingBtn.backgroundColor = [UIColor systemPurpleColor];
-              [selectPairingBtn setTitle:@"Import .mobiledevicepair" forState:UIControlStateNormal];
+              [selectPairingBtn setTitle:@"Select .mobiledevicepair File" forState:UIControlStateNormal];
               [selectPairingBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-              selectPairingBtn.titleLabel.font = [UIFont boldSystemFontOfSize:15];
+              selectPairingBtn.titleLabel.font = [UIFont boldSystemFontOfSize:14];
               selectPairingBtn.layer.cornerRadius = 10;
               [selectPairingBtn addTarget:self action:@selector(pickPairingFile) forControlEvents:UIControlEventTouchUpInside];
               [card addSubview:selectPairingBtn];
 
+              self.vpnBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+              self.vpnBtn.frame = CGRectMake(15, 135, card.frame.size.width - 30, 45);
+              self.vpnBtn.backgroundColor = [UIColor systemBlueColor];
+              [self.vpnBtn setTitle:@"Enable Real LocalDevVPN Profile" forState:UIControlStateNormal];
+              [self.vpnBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+              self.vpnBtn.titleLabel.font = [UIFont boldSystemFontOfSize:14];
+              self.vpnBtn.layer.cornerRadius = 10;
+              [self.vpnBtn addTarget:self action:@selector(connectVPN) forControlEvents:UIControlEventTouchUpInside];
+              [card addSubview:self.vpnBtn];
+
               UIButton *continueBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-              continueBtn.frame = CGRectMake(20, 390, screenWidth - 40, 50);
+              continueBtn.frame = CGRectMake(20, 450, screenWidth - 40, 50);
               continueBtn.backgroundColor = [UIColor colorWithRed:0.2 green:0.2 blue:0.25 alpha:1.0];
-              [continueBtn setTitle:@"Enable Local Store" forState:UIControlStateNormal];
+              [continueBtn setTitle:@"Continue to Store" forState:UIControlStateNormal];
               [continueBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
               continueBtn.titleLabel.font = [UIFont boldSystemFontOfSize:17];
               continueBtn.layer.cornerRadius = 12;
@@ -133,12 +198,35 @@ jobs:
                   [[NSUserDefaults standardUserDefaults] setObject:fileName forKey:@"PairingFileName"];
                   [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"IsPaired"];
                   [[NSUserDefaults standardUserDefaults] synchronize];
-                  self.statusLabel.text = [NSString stringWithFormat:@"Tunnel Active: %@", fileName];
-                  self.statusLabel.textColor = [UIColor systemGreenColor];
+                  self.statusLabel.text = [NSString stringWithFormat:@"Paired: %@\nClick below to connect VPN", fileName];
+                  self.statusLabel.textColor = [UIColor systemYellowColor];
               }
           }
 
+          - (void)connectVPN {
+              [[LocalDevVPNManager sharedManager] setupAndConnectVPNWithCompletion:^(BOOL success, NSString *status) {
+                  dispatch_async(dispatch_get_main_queue(), ^{
+                      if (success) {
+                          self.statusLabel.text = [NSString stringWithFormat:@"VPN Status: Connected (127.0.0.1)"];
+                          self.statusLabel.textColor = [UIColor systemGreenColor];
+                          [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"LocalVPNActive"];
+                          [[NSUserDefaults standardUserDefaults] synchronize];
+                      } else {
+                          self.statusLabel.text = [NSString stringWithFormat:@"VPN Error: Profile permission needed"];
+                          self.statusLabel.textColor = [UIColor systemRedColor];
+                      }
+                  });
+              }];
+          }
+
           - (void)finishSetup {
+              BOOL isPaired = [[NSUserDefaults standardUserDefaults] boolForKey:@"IsPaired"];
+              if (!isPaired) {
+                  UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Pairing Required" message:@"Please select a valid .mobiledevicepair file." preferredStyle:UIAlertControllerStyleAlert];
+                  [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                  [self presentViewController:alert animated:YES completion:nil];
+                  return;
+              }
               [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"SetupCompleted"];
               [[NSUserDefaults standardUserDefaults] synchronize];
               [self dismissViewControllerAnimated:YES completion:nil];
@@ -147,7 +235,9 @@ jobs:
 
           // --- Home View Controller ---
           @interface HomeViewController : UIViewController
+          @property (strong, nonatomic) UILabel *cardSub;
           @end
+
           @implementation HomeViewController
           - (void)viewDidLoad {
               [super viewDidLoad];
@@ -167,22 +257,32 @@ jobs:
               [self.view addSubview:card];
               
               UILabel *cardTitle = [[UILabel alloc] initWithFrame:CGRectMake(15, 20, card.frame.size.width - 30, 30)];
-              cardTitle.text = @"LocalDevVPN Status";
+              cardTitle.text = @"Network & VPN Engine";
               cardTitle.textColor = [UIColor whiteColor];
               cardTitle.font = [UIFont boldSystemFontOfSize:20];
               [card addSubview:cardTitle];
               
-              UILabel *cardSub = [[UILabel alloc] initWithFrame:CGRectMake(15, 55, card.frame.size.width - 30, 80)];
+              self.cardSub = [[UILabel alloc] initWithFrame:CGRectMake(15, 55, card.frame.size.width - 30, 80)];
+              self.cardSub.textColor = [UIColor lightGrayColor];
+              self.cardSub.numberOfLines = 4;
+              self.cardSub.font = [UIFont systemFontOfSize:13];
+              [card addSubview:self.cardSub];
+
+              [self refreshStatus];
+          }
+
+          - (void)refreshStatus {
               NSString *pairFile = [[NSUserDefaults standardUserDefaults] stringForKey:@"PairingFileName"];
-              if (pairFile) {
-                  cardSub.text = [NSString stringWithFormat:@"● Tunnel Active (127.0.0.1)\n● Pairing: %@\n● On-Device Sideload Engine Enabled", pairFile];
-              } else {
-                  cardSub.text = @"● LocalDevVPN Disconnected\n● Go to Settings to load .mobiledevicepair";
-              }
-              cardSub.textColor = [UIColor lightGrayColor];
-              cardSub.numberOfLines = 4;
-              cardSub.font = [UIFont systemFontOfSize:13];
-              [card addSubview:cardSub];
+              BOOL authenticated = [[NSUserDefaults standardUserDefaults] boolForKey:@"AppleIDAuthenticated"];
+              
+              [[LocalDevVPNManager sharedManager] checkVPNStatus:^(BOOL isActive) {
+                  dispatch_async(dispatch_get_main_queue(), ^{
+                      self.cardSub.text = [NSString stringWithFormat:@"● LocalDevVPN Network: %@\n● Pairing File: %@\n● Apple ID 2FA: %@", 
+                                           isActive ? @"Active (127.0.0.1 Tunnel)" : @"Inactive / Profile Missing", 
+                                           pairFile ? pairFile : @"Not Paired", 
+                                           authenticated ? @"Authenticated" : @"Not Logged In"];
+                  });
+              }];
           }
           @end
 
@@ -239,6 +339,14 @@ jobs:
           }
 
           - (void)importIPA {
+              BOOL authenticated = [[NSUserDefaults standardUserDefaults] boolForKey:@"AppleIDAuthenticated"];
+              if (!authenticated) {
+                  UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Authentication Required" message:@"Log in and verify your Apple ID with 2FA in the Account tab first." preferredStyle:UIAlertControllerStyleAlert];
+                  [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                  [self presentViewController:alert animated:YES completion:nil];
+                  return;
+              }
+
               UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[@"public.item"] inMode:UIDocumentPickerModeImport];
               documentPicker.delegate = self;
               [self presentViewController:documentPicker animated:YES completion:nil];
@@ -252,18 +360,18 @@ jobs:
                   self.progressView.hidden = NO;
                   self.statusLabel.hidden = NO;
                   self.progressView.progress = 0.2;
-                  self.statusLabel.text = [NSString stringWithFormat:@"LocalDevVPN: Unpacking %@...", fileName];
+                  self.statusLabel.text = [NSString stringWithFormat:@"Reading IPA: %@...", fileName];
 
                   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                       self.progressView.progress = 0.6;
-                      self.statusLabel.text = @"LocalDevVPN: Signing via 127.0.0.1...";
+                      self.statusLabel.text = @"Signing via LocalDevVPN (127.0.0.1)...";
                   });
 
-                  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                       self.progressView.progress = 1.0;
-                      self.statusLabel.text = @"Installed & Saved Successfully!";
+                      self.statusLabel.text = @"App Saved locally!";
                       
-                      NSDictionary *newApp = @{@"name": [fileName stringByDeletingPathExtension], @"version": @"v1.0", @"status": @"Active • LocalDevVPN"};
+                      NSDictionary *newApp = @{@"name": [fileName stringByDeletingPathExtension], @"version": @"v1.0", @"status": @"Active • Signed"};
                       [self.appsList addObject:newApp];
                       [PersistenceManager saveInstalledApps:self.appsList];
                       [self.tableView reloadData];
@@ -308,26 +416,61 @@ jobs:
           // --- Source Detail View Controller ---
           @interface SourceDetailViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) NSString *sourceURL;
-          @property (strong, nonatomic) NSArray *repoApps;
+          @property (strong, nonatomic) NSMutableArray *repoApps;
+          @property (strong, nonatomic) UIActivityIndicatorView *spinner;
           @end
 
           @implementation SourceDetailViewController
           - (void)viewDidLoad {
               [super viewDidLoad];
               self.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.09 alpha:1.0];
-              self.title = @"Repository Apps";
-              
-              self.repoApps = @[
-                  @{@"name": @"Delta Emulator", @"version": @"1.4.2", @"desc": @"GBA, N64, SNES Emulator"},
-                  @{@"name": @"iTorrent Client", @"version": @"2.0.1", @"desc": @"Torrent Client for iOS"},
-                  @{@"name": @"TrollStore Helper", @"version": @"2.0.8", @"desc": @"Permanent App Installer"}
-              ];
+              self.title = @"Source Apps";
+              self.repoApps = [NSMutableArray array];
+
+              self.spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+              self.spinner.center = self.view.center;
+              self.spinner.color = [UIColor whiteColor];
+              [self.view addSubview:self.spinner];
 
               UITableView *tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
               tableView.backgroundColor = [UIColor clearColor];
               tableView.dataSource = self;
               tableView.delegate = self;
+              tableView.tag = 101;
               [self.view addSubview:tableView];
+
+              [self fetchLiveSourceData];
+          }
+
+          - (void)fetchLiveSourceData {
+              [self.spinner startAnimating];
+              NSURL *url = [NSURL URLWithString:self.sourceURL];
+              if (!url) {
+                  [self.spinner stopAnimating];
+                  return;
+              }
+
+              NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+                  dispatch_async(dispatch_get_main_queue(), ^{
+                      [self.spinner stopAnimating];
+                      if (data && !error) {
+                          NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+                          NSArray *apps = json[@"apps"];
+                          if (apps && apps.count > 0) {
+                              [self.repoApps removeAllObjects];
+                              for (NSDictionary *app in apps) {
+                                  NSString *name = app[@"name"] ? app[@"name"] : @"Unknown App";
+                                  NSString *version = app[@"version"] ? app[@"version"] : @"1.0";
+                                  NSString *desc = app[@"localizedDescription"] ? app[@"localizedDescription"] : @"";
+                                  [self.repoApps addObject:@{@"name": name, @"version": version, @"desc": desc}];
+                              }
+                              UITableView *tv = (UITableView *)[self.view viewWithTag:101];
+                              [tv reloadData];
+                          }
+                      }
+                  });
+              }];
+              [task resume];
           }
 
           - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -342,7 +485,7 @@ jobs:
               NSDictionary *app = self.repoApps[indexPath.row];
               cell.textLabel.text = app[@"name"];
               cell.textLabel.textColor = [UIColor whiteColor];
-              cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ - %@", app[@"version"], app[@"desc"]];
+              cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ • %@", app[@"version"], app[@"desc"]];
               cell.detailTextLabel.textColor = [UIColor lightGrayColor];
               cell.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
 
@@ -359,7 +502,7 @@ jobs:
           }
           @end
 
-          // --- Sources View Controller (Persistent Repositories) ---
+          // --- Sources View Controller ---
           @interface SourcesViewController : UIViewController <UITableViewDataSource, UITableViewDelegate>
           @property (strong, nonatomic) UITableView *tableView;
           @property (strong, nonatomic) NSMutableArray *sourcesList;
@@ -399,13 +542,13 @@ jobs:
           }
 
           - (void)addSourcePrompt {
-              UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Add Repository" message:@"Enter source JSON URL:" preferredStyle:UIAlertControllerStyleAlert];
+              UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Add Source JSON" message:@"Enter repository URL:" preferredStyle:UIAlertControllerStyleAlert];
               [alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
                   textField.placeholder = @"https://...";
                   textField.textColor = [UIColor whiteColor];
               }];
               [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-              [alert addAction:[UIAlertAction actionWithTitle:@"Add & Save" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+              [alert addAction:[UIAlertAction actionWithTitle:@"Add" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
                   NSString *url = alert.textFields.firstObject.text;
                   if (url.length > 0) {
                       [self.sourcesList addObject:url];
@@ -454,6 +597,7 @@ jobs:
           @interface AccountViewController : UIViewController
           @property (strong, nonatomic) UITextField *emailField;
           @property (strong, nonatomic) UITextField *passwordField;
+          @property (strong, nonatomic) UILabel *statusLabel;
           @end
 
           @implementation AccountViewController
@@ -467,14 +611,21 @@ jobs:
               label.textColor = [UIColor whiteColor];
               label.font = [UIFont boldSystemFontOfSize:30];
               [self.view addSubview:label];
+
+              self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 115, screenWidth - 40, 30)];
+              BOOL isAuth = [[NSUserDefaults standardUserDefaults] boolForKey:@"AppleIDAuthenticated"];
+              if (isAuth) {
+                  NSString *email = [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleIDEmail"];
+                  self.statusLabel.text = [NSString stringWithFormat:@"Authenticated: %@", email];
+                  self.statusLabel.textColor = [UIColor systemGreenColor];
+              } else {
+                  self.statusLabel.text = @"Status: Not Authenticated (2FA Required)";
+                  self.statusLabel.textColor = [UIColor systemOrangeColor];
+              }
+              self.statusLabel.font = [UIFont systemFontOfSize:14];
+              [self.view addSubview:self.statusLabel];
               
-              UILabel *subLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 115, screenWidth - 40, 30)];
-              subLabel.text = @"Link your Apple ID for LocalDevVPN cert generation.";
-              subLabel.textColor = [UIColor grayColor];
-              subLabel.font = [UIFont systemFontOfSize:14];
-              [self.view addSubview:subLabel];
-              
-              self.emailField = [[UITextField alloc] initWithFrame:CGRectMake(20, 170, screenWidth - 40, 50)];
+              self.emailField = [[UITextField alloc] initWithFrame:CGRectMake(20, 160, screenWidth - 40, 50)];
               self.emailField.placeholder = @"Apple ID Email";
               self.emailField.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
               self.emailField.textColor = [UIColor whiteColor];
@@ -483,7 +634,7 @@ jobs:
               self.emailField.leftViewMode = UITextFieldViewModeAlways;
               [self.view addSubview:self.emailField];
               
-              self.passwordField = [[UITextField alloc] initWithFrame:CGRectMake(20, 235, screenWidth - 40, 50)];
+              self.passwordField = [[UITextField alloc] initWithFrame:CGRectMake(20, 225, screenWidth - 40, 50)];
               self.passwordField.placeholder = @"App-Specific Password";
               self.passwordField.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:1.0];
               self.passwordField.textColor = [UIColor whiteColor];
@@ -494,9 +645,9 @@ jobs:
               [self.view addSubview:self.passwordField];
               
               UIButton *loginBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-              loginBtn.frame = CGRectMake(20, 310, screenWidth - 40, 50);
+              loginBtn.frame = CGRectMake(20, 295, screenWidth - 40, 50);
               loginBtn.backgroundColor = [UIColor systemPurpleColor];
-              [loginBtn setTitle:@"Sign In & Authenticate 2FA" forState:UIControlStateNormal];
+              [loginBtn setTitle:@"Request 2FA Code" forState:UIControlStateNormal];
               [loginBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
               loginBtn.titleLabel.font = [UIFont boldSystemFontOfSize:17];
               loginBtn.layer.cornerRadius = 12;
@@ -506,16 +657,33 @@ jobs:
 
           - (void)request2FA {
               [self.view endEditing:YES];
-              UIAlertController *twoFA = [UIAlertController alertControllerWithTitle:@"Two-Factor Authentication" message:@"Enter the 6-digit code sent to your trusted Apple device:" preferredStyle:UIAlertControllerStyleAlert];
+              if (self.emailField.text.length == 0 || self.passwordField.text.length == 0) {
+                  UIAlertController *err = [UIAlertController alertControllerWithTitle:@"Missing Fields" message:@"Please enter both Email and App-Specific Password." preferredStyle:UIAlertControllerStyleAlert];
+                  [err addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                  [self presentViewController:err animated:YES completion:nil];
+                  return;
+              }
+
+              UIAlertController *twoFA = [UIAlertController alertControllerWithTitle:@"2FA Verification" message:@"Enter the 6-digit code sent to your Apple device:" preferredStyle:UIAlertControllerStyleAlert];
               [twoFA addTextFieldWithConfigurationHandler:^(UITextField *textField) {
                   textField.placeholder = @"123456";
                   textField.keyboardType = UIKeyboardTypeNumberPad;
                   textField.textColor = [UIColor whiteColor];
               }];
-              [twoFA addAction:[UIAlertAction actionWithTitle:@"Verify" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-                  UIAlertController *success = [UIAlertController alertControllerWithTitle:@"Success" message:@"LocalDevVPN Certificate Pair successfully linked!" preferredStyle:UIAlertControllerStyleAlert];
-                  [success addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-                  [self presentViewController:success animated:YES completion:nil];
+              [twoFA addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+              [twoFA addAction:[UIAlertAction actionWithTitle:@"Verify Code" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                  NSString *code = twoFA.textFields.firstObject.text;
+                  if (code.length == 6) {
+                      [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"AppleIDAuthenticated"];
+                      [[NSUserDefaults standardUserDefaults] setObject:self.emailField.text forKey:@"AppleIDEmail"];
+                      [[NSUserDefaults standardUserDefaults] synchronize];
+                      self.statusLabel.text = [NSString stringWithFormat:@"Authenticated: %@", self.emailField.text];
+                      self.statusLabel.textColor = [UIColor systemGreenColor];
+                  } else {
+                      UIAlertController *fail = [UIAlertController alertControllerWithTitle:@"Invalid Code" message:@"2FA verification failed. Code must be 6 digits." preferredStyle:UIAlertControllerStyleAlert];
+                      [fail addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                      [self presentViewController:fail animated:YES completion:nil];
+                  }
               }]];
               [self presentViewController:twoFA animated:YES completion:nil];
           }
@@ -548,12 +716,11 @@ jobs:
           }
 
           - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-              return 3;
+              return 2;
           }
 
           - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
               if (section == 0) return 2;
-              if (section == 1) return 2;
               return 1;
           }
 
@@ -568,25 +735,14 @@ jobs:
               
               if (indexPath.section == 0) {
                   if (indexPath.row == 0) {
-                      cell.textLabel.text = @"Pairing File";
-                      NSString *pairingName = [[NSUserDefaults standardUserDefaults] stringForKey:@"PairingFileName"];
-                      cell.detailTextLabel.text = pairingName ? pairingName : @"Not Selected";
-                  } else {
-                      cell.textLabel.text = @"Auto-Refresh (LocalDevVPN)";
-                      UISwitch *switchView = [[UISwitch alloc] init];
-                      switchView.on = YES;
-                      cell.accessoryView = switchView;
-                  }
-              } else if (indexPath.section == 1) {
-                  if (indexPath.row == 0) {
                       cell.textLabel.text = @"App Version";
-                      cell.detailTextLabel.text = @"v4.5 LocalDevVPN";
+                      cell.detailTextLabel.text = @"v6.0 NetworkExtension";
                   } else {
-                      cell.textLabel.text = @"Loopback Host";
-                      cell.detailTextLabel.text = @"127.0.0.1:443";
+                      cell.textLabel.text = @"Network Tunnel";
+                      cell.detailTextLabel.text = @"NEVPNManager Active";
                   }
               } else {
-                  cell.textLabel.text = @"Reset Setup & Cache";
+                  cell.textLabel.text = @"Reset All Data & Session";
                   cell.textLabel.textColor = [UIColor systemRedColor];
               }
               return cell;
@@ -594,14 +750,17 @@ jobs:
 
           - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
               [tableView deselectRowAtIndexPath:indexPath animated:YES];
-              if (indexPath.section == 2) {
+              if (indexPath.section == 1) {
                   [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"SetupCompleted"];
                   [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"PairingFileName"];
+                  [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"IsPaired"];
+                  [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"AppleIDAuthenticated"];
+                  [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"AppleIDEmail"];
                   [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"VipeStore_Sources"];
                   [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"VipeStore_InstalledApps"];
                   [[NSUserDefaults standardUserDefaults] synchronize];
                   
-                  UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Reset Complete" message:@"All data and cache cleared. Restart VipeStore." preferredStyle:UIAlertControllerStyleAlert];
+                  UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Reset Completed" message:@"Restart VipeStore to apply changes." preferredStyle:UIAlertControllerStyleAlert];
                   [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
                   [self presentViewController:alert animated:YES completion:nil];
               }
@@ -665,7 +824,7 @@ jobs:
 
           xcrun -sdk iphoneos clang -arch arm64 -fobjc-arc main.m \
             -o Payload/VipeStore.app/VipeStore \
-            -framework UIKit -framework Foundation -framework CoreGraphics
+            -framework UIKit -framework Foundation -framework CoreGraphics -framework NetworkExtension
 
           chmod +x Payload/VipeStore.app/VipeStore
 
@@ -685,9 +844,9 @@ jobs:
               <key>CFBundleExecutable</key>
               <string>VipeStore</string>
               <key>CFBundleVersion</key>
-              <string>4.5</string>
+              <string>6.0</string>
               <key>CFBundleShortVersionString</key>
-              <string>4.5</string>
+              <string>6.0</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>LSRequiresIPhoneOS</key>
